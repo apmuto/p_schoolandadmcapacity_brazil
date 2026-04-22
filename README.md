@@ -38,3 +38,25 @@ Ana Paula Muto
 - Version: 4.1, Brazil, GeoPackage
 - Source: https://gadm.org
 - File: gadm41_BRA.gpkg
+
+### FINBRA - Finanças do Brasil 2024
+- Source: Secretaria do Tesouro Nacional (STN) / SICONFI
+- https://siconfi.tesouro.gov.br/siconfi/pages/public/consulta_finbra/finbra_list.jsf
+- Scope: Municípios and Estados/DF | Exercício: 2024
+- Files:
+  - finbra2024_mun_IC.csv — Receitas Orçamentárias (Anexo I-C)
+  - finbra2024_mun_IE.csv — Despesas por Função (Anexo I-E)
+  - finbra2024_mun_IAB.csv — Balanço Patrimonial DCA (Anexo I-AB)
+  - finbra2024_est_IC.csv — Receitas Orçamentárias estados (Anexo I-C)
+  - finbra2024_est_IE.csv — Despesas por Função estados (Anexo I-E)
+  - finbra2024_est_IAB.csv — Balanço Patrimonial estados (Anexo I-AB)
+
+### CAPAG - Capacidade de Pagamento 2025
+- Source: Secretaria do Tesouro Nacional (STN)
+- https://www.tesourotransparente.gov.br/temas/estados-e-municipios/capag
+- Base year: 2024 (February 2025 release)
+- Files:
+  - capag-municipios-posicao-2025-fev-19.xlsx — Municipal CAPAG grades
+  - capagdosestados2025.csv — State CAPAG grades
+- Note: Used as robustness check variable only. Main administrative
+  capacity indicators are built from FINBRA.
