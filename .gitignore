@@ -1,0 +1,11 @@
+# Raw data — too large for Git
+data/raw/
+
+# Generated outputs
+data/processed/
+
+# R artifacts
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
