@@ -60,3 +60,19 @@ Ana Paula Muto
   - capagdosestados2025.csv — State CAPAG grades
 - Note: Used as robustness check variable only. Main administrative
   capacity indicators are built from FINBRA.
+
+### IBGE SIDRA - Socioeconomic Controls
+- Source: Instituto Brasileiro de Geografia e Estatística (IBGE)
+- https://sidra.ibge.gov.br
+- Pulled automatically via sidrar R package
+- Tables used:
+  - Table 6579: População residente estimada (most recent = 2025)
+  - Table 5938: PIB municipal a preços correntes (most recent = 2023)
+  - Table 1301: Área territorial municipal (2010)
+
+### IBGE Biomas do Brasil
+- Source: Instituto Brasileiro de Geografia e Estatística (IBGE)
+- https://geoftp.ibge.gov.br/informacoes_ambientais/estudos_ambientais/biomas/vetores/
+- Scale: 1:250,000
+- File: lm_bioma_250.shp
+- 6 biomes: Amazônia, Caatinga, Cerrado, Mata Atlântica, Pampa, Pantanal
