@@ -165,3 +165,5 @@ cat("Saved state+municipalities to", PATH_STATEMUNIC, "\n")
 
 st_write(settlement_sf_13, PATH_SETTLE_13, delete_dsn = TRUE, quiet = TRUE)
 cat("Saved settlement centroids (threshold 13) to", PATH_SETTLE_13, "\n")
+
+cat("\nScript 02 complete.\n")
