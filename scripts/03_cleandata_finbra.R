@@ -1,5 +1,5 @@
 # ==================================================
-# 03-cleandata-finbra.R
+# 03_cleandata_finbra.R
 # Project: Municipal administrative capacity and
 #          secondary school accessibility in Brazil
 # Goal: Load and clean FINBRA 2024 data for
@@ -22,6 +22,7 @@
 # Date: 2025
 # ==================================================
 
+source("scripts/00_functions_misc.R")
 library(tidyverse)
 library(data.table)
 library(readxl)
@@ -30,35 +31,22 @@ library(readxl)
 # CONSTANTS
 # ============================================================
 
-PATH_MUN_IC  <- "data/raw/finbra2024_mun_IC.csv"
-PATH_MUN_IE  <- "data/raw/finbra2024_mun_IE.csv"
-PATH_MUN_IAB <- "data/raw/finbra2024_mun_IAB.csv"
-PATH_EST_IC  <- "data/raw/finbra2024_est_IC.csv"
-PATH_EST_IE  <- "data/raw/finbra2024_est_IE.csv"
-PATH_EST_IAB <- "data/raw/finbra2024_est_IAB.csv"
+PATH_MUN_IC    <- "data/raw/finbra2024_mun_IC.csv"
+PATH_MUN_IE    <- "data/raw/finbra2024_mun_IE.csv"
+PATH_MUN_IAB   <- "data/raw/finbra2024_mun_IAB.csv"
+PATH_EST_IC    <- "data/raw/finbra2024_est_IC.csv"
+PATH_EST_IE    <- "data/raw/finbra2024_est_IE.csv"
+PATH_EST_IAB   <- "data/raw/finbra2024_est_IAB.csv"
 PATH_CAPAG_MUN <- "data/raw/capag-municipios-posicao-2025-fev-19.xlsx"
 PATH_CAPAG_EST <- "data/raw/capagdosestados2025.csv"
-
-PATH_OUT_MUN   <- "data/processed/finbra_municipios.csv"
-PATH_OUT_EST   <- "data/processed/finbra_estados.csv"
+PATH_OUT_MUN       <- "data/processed/finbra_municipios.csv"
+PATH_OUT_EST       <- "data/processed/finbra_estados.csv"
 PATH_OUT_CAPAG_MUN <- "data/processed/capag_municipios.csv"
 PATH_OUT_CAPAG_EST <- "data/processed/capag_estados.csv"
 
-# Helper function to load FINBRA files
-# All files have 3 header rows before actual data
-load_finbra <- function(path) {
-  fread(path, encoding = "Latin-1", quote = "",
-        fill = TRUE, sep = ";", skip = 3)
-}
-
-# Helper function to clean account names
-# Removes surrounding quotes added by FINBRA export
-clean_conta <- function(x) {
-  gsub('^"|"$', '', x)
-}
-
 # ============================================================
 # LOAD MUNICIPAL FINBRA FILES
+# load_finbra() auto-cleans Conta, Coluna, Valor
 # ============================================================
 
 cat("Loading municipal FINBRA files...\n")
@@ -67,25 +55,17 @@ mun_ic  <- load_finbra(PATH_MUN_IC)
 mun_ie  <- load_finbra(PATH_MUN_IE)
 mun_iab <- load_finbra(PATH_MUN_IAB)
 
-cat("Municipal I-C rows:", nrow(mun_ic),
-    "| Municipalities:", n_distinct(mun_ic$Cod.IBGE), "\n")
-cat("Municipal I-E rows:", nrow(mun_ie),
-    "| Municipalities:", n_distinct(mun_ie$Cod.IBGE), "\n")
+# Rename merge key to CO_MUNICIPIO for consistency
+mun_ic$CO_MUNICIPIO  <- as.character(mun_ic$Cod.IBGE)
+mun_ie$CO_MUNICIPIO  <- as.character(mun_ie$Cod.IBGE)
+mun_iab$CO_MUNICIPIO <- as.character(mun_iab$Cod.IBGE)
+
+cat("Municipal I-C  rows:", nrow(mun_ic),
+    "| Municipalities:", n_distinct(mun_ic$CO_MUNICIPIO), "\n")
+cat("Municipal I-E  rows:", nrow(mun_ie),
+    "| Municipalities:", n_distinct(mun_ie$CO_MUNICIPIO), "\n")
 cat("Municipal I-AB rows:", nrow(mun_iab),
-    "| Municipalities:", n_distinct(mun_iab$Cod.IBGE), "\n")
-
-# Clean account names in all files
-mun_ic$Conta  <- clean_conta(mun_ic$Conta)
-mun_ic$Coluna <- clean_conta(mun_ic$Coluna)
-mun_ie$Conta  <- clean_conta(mun_ie$Conta)
-mun_ie$Coluna <- clean_conta(mun_ie$Coluna)
-mun_iab$Conta  <- clean_conta(mun_iab$Conta)
-mun_iab$Coluna <- clean_conta(mun_iab$Coluna)
-
-# Fix Valor: replace comma decimal separator with period
-mun_ic$Valor  <- as.numeric(gsub(",", ".", mun_ic$Valor))
-mun_ie$Valor  <- as.numeric(gsub(",", ".", mun_ie$Valor))
-mun_iab$Valor <- as.numeric(gsub(",", ".", mun_iab$Valor))
+    "| Municipalities:", n_distinct(mun_iab$CO_MUNICIPIO), "\n")
 
 # ============================================================
 # EXTRACT MUNICIPAL REVENUE INDICATORS (I-C)
@@ -104,15 +84,15 @@ mun_receitas <- mun_ic %>%
     "1.7.1.1.51.0.0 -Cota-Parte do Fundo de Participação dos Municípios - FPM",
     "1.7.2.0.00.0.0 - Transferências dos Estados e do Distrito Federal e de suas Entidades"
   )) %>%
-  select(Cod.IBGE, UF, Populacao = População, Conta, Valor) %>%
+  select(CO_MUNICIPIO, UF, Populacao = População, Conta, Valor) %>%
   pivot_wider(names_from = Conta, values_from = Valor) %>%
   rename(
-    receita_total     = `RECEITAS (EXCETO INTRA-ORÇAMENTÁRIAS) (I)`,
-    receita_propria   = `1.1.0.0.00.0.0 - Impostos, Taxas e Contribuições de Melhoria`,
-    transf_total      = `1.7.0.0.00.0.0 - Transferências Correntes`,
-    transf_uniao      = `1.7.1.0.00.0.0 - Transferências da União e de suas Entidades`,
-    fpm               = `1.7.1.1.51.0.0 -Cota-Parte do Fundo de Participação dos Municípios - FPM`,
-    transf_estados    = `1.7.2.0.00.0.0 - Transferências dos Estados e do Distrito Federal e de suas Entidades`
+    receita_total  = `RECEITAS (EXCETO INTRA-ORÇAMENTÁRIAS) (I)`,
+    receita_propria= `1.1.0.0.00.0.0 - Impostos, Taxas e Contribuições de Melhoria`,
+    transf_total   = `1.7.0.0.00.0.0 - Transferências Correntes`,
+    transf_uniao   = `1.7.1.0.00.0.0 - Transferências da União e de suas Entidades`,
+    fpm            = `1.7.1.1.51.0.0 -Cota-Parte do Fundo de Participação dos Municípios - FPM`,
+    transf_estados = `1.7.2.0.00.0.0 - Transferências dos Estados e do Distrito Federal e de suas Entidades`
   )
 
 cat("Revenue indicators extracted for:", nrow(mun_receitas), "municipalities\n")
@@ -123,26 +103,23 @@ cat("Revenue indicators extracted for:", nrow(mun_receitas), "municipalities\n")
 
 cat("\nExtracting municipal expenditure indicators...\n")
 
-# Budget execution: liquidadas / empenhadas
 mun_exec <- mun_ie %>%
   filter(Conta == "Despesas Exceto Intraorçamentárias") %>%
   filter(Coluna %in% c("Despesas Empenhadas", "Despesas Liquidadas")) %>%
-  select(Cod.IBGE, Coluna, Valor) %>%
+  select(CO_MUNICIPIO, Coluna, Valor) %>%
   pivot_wider(names_from = Coluna, values_from = Valor) %>%
   rename(
-    desp_empenhadas  = `Despesas Empenhadas`,
-    desp_liquidadas  = `Despesas Liquidadas`
+    desp_empenhadas = `Despesas Empenhadas`,
+    desp_liquidadas = `Despesas Liquidadas`
   )
 
-# Education expenditure
 mun_edu <- mun_ie %>%
   filter(Conta == "12 - Educação") %>%
   filter(Coluna == "Despesas Liquidadas") %>%
-  select(Cod.IBGE, desp_educacao = Valor)
+  select(CO_MUNICIPIO, desp_educacao = Valor)
 
-# Merge expenditure indicators
 mun_despesas <- mun_exec %>%
-  left_join(mun_edu, by = "Cod.IBGE")
+  left_join(mun_edu, by = "CO_MUNICIPIO")
 
 cat("Expenditure indicators extracted for:", nrow(mun_despesas), "municipalities\n")
 
@@ -160,7 +137,7 @@ mun_divida <- mun_iab %>%
     "2.2.0.0.0.00.00 - Passivo Não-Circulante",
     "2.2.2.0.0.00.00 - Empréstimos e Financiamentos a Longo Prazo"
   )) %>%
-  select(Cod.IBGE, Conta, Valor) %>%
+  select(CO_MUNICIPIO, Conta, Valor) %>%
   pivot_wider(names_from = Conta, values_from = Valor) %>%
   rename(
     ativo_total        = `1.0.0.0.0.00.00 - Ativo`,
@@ -168,94 +145,70 @@ mun_divida <- mun_iab %>%
     passivo_nao_circ   = `2.2.0.0.0.00.00 - Passivo Não-Circulante`,
     divida_lp          = `2.2.2.0.0.00.00 - Empréstimos e Financiamentos a Longo Prazo`
   )
+
 cat("Debt indicators extracted for:", nrow(mun_divida), "municipalities\n")
 
 # ============================================================
 # MERGE MUNICIPAL INDICATORS
 # ============================================================
 
-# Ensure Cod.IBGE is character in all dataframes before joining
-mun_receitas$Cod.IBGE <- as.character(mun_receitas$Cod.IBGE)
-mun_despesas$Cod.IBGE <- as.character(mun_despesas$Cod.IBGE)
-mun_divida$Cod.IBGE   <- as.character(mun_divida$Cod.IBGE)
-
 finbra_mun <- mun_receitas %>%
-  left_join(mun_despesas, by = "Cod.IBGE") %>%
-  left_join(mun_divida,   by = "Cod.IBGE")
+  left_join(mun_despesas, by = "CO_MUNICIPIO") %>%
+  left_join(mun_divida,   by = "CO_MUNICIPIO")
 
-cat("Merged rows:", nrow(finbra_mun), "\n")
+check_merge(finbra_mun, nrow(mun_receitas), "Municipal merge")
+
 # ============================================================
 # BUILD MUNICIPAL FISCAL CAPACITY INDICATORS
+# All variables suffixed with _mun for clarity in master merge
 # ============================================================
 
 cat("\nBuilding municipal fiscal capacity indicators...\n")
 
 finbra_mun <- finbra_mun %>%
   mutate(
+    # Share of revenue generated locally
+    fiscal_autonomy_mun     = receita_propria / receita_total,
 
-    # --- FISCAL AUTONOMY ---
-    # Share of revenue generated locally vs received from transfers
-    fiscal_autonomy = receita_propria / receita_total,
+    # Share of revenue from intergovernmental transfers (inverted in score)
+    transfer_dependence_mun = transf_total / receita_total,
 
-    # --- TRANSFER DEPENDENCE ---
-    # Share of revenue coming from intergovernmental transfers
-    transfer_dependence = transf_total / receita_total,
+    # Share from FPM federal transfer (inverted in score)
+    fpm_dependence_mun      = fpm / receita_total,
 
-    # --- FPM DEPENDENCE ---
-    # Share of revenue coming specifically from FPM
-    # Key federal equalisation transfer — higher = more dependent on Brasília
-    fpm_dependence = fpm / receita_total,
+    # Share of spending going to education
+    edu_share_mun           = desp_educacao / desp_liquidadas,
 
-    # --- EDUCATION SHARE ---
-    # Share of liquidated expenditure going to education
-    edu_share = desp_educacao / desp_liquidadas,
+    # Share of committed spending actually delivered
+    budget_execution_mun    = desp_liquidadas / desp_empenhadas,
 
-    # --- BUDGET EXECUTION ---
-    # Share of committed expenditure actually liquidated
-    # Higher = better administrative delivery capacity
-    budget_execution = desp_liquidadas / desp_empenhadas,
+    # Total liabilities relative to revenue (inverted in score)
+    debt_ratio_mun          = (passivo_circulante + passivo_nao_circ) /
+                               receita_total,
 
-    # --- DEBT RATIO ---
-    # Short-term liabilities relative to total revenue
-    # Higher = more fiscally stressed
-    debt_ratio = passivo_circulante / receita_total,
-
-    # --- COMPOSITE ADMINISTRATIVE CAPACITY SCORE ---
-    # Standardised mean of all indicators
-    # Invert transfer_dependence, fpm_dependence, debt_ratio
-    # so higher score always = more capable
-    adm_capacity_score = rowMeans(
+    # Composite score: standardised mean, higher = more capable
+    adm_capacity_score_mun  = rowMeans(
       scale(cbind(
-        fiscal_autonomy,
-        -transfer_dependence,
-        -fpm_dependence,
-        edu_share,
-        budget_execution,
-        -debt_ratio
+        fiscal_autonomy_mun,
+        -transfer_dependence_mun,
+        -fpm_dependence_mun,
+        edu_share_mun,
+        budget_execution_mun,
+        -debt_ratio_mun
       )), na.rm = TRUE
     )
   )
 
-# ============================================================
-# DIAGNOSTICS ON MUNICIPAL INDICATORS
-# ============================================================
-
-cat("\n--- Municipal indicator diagnostics ---\n")
-
-indicators <- c("fiscal_autonomy", "transfer_dependence",
-                "fpm_dependence", "edu_share",
-                "budget_execution", "debt_ratio",
-                "adm_capacity_score")
-
-for (ind in indicators) {
-  vals <- finbra_mun[[ind]]
-  cat(sprintf("%-25s mean=%.3f | sd=%.3f | NA=%d\n",
-              ind, mean(vals, na.rm=TRUE),
-              sd(vals, na.rm=TRUE), sum(is.na(vals))))
-}
+report_indicators(finbra_mun, c(
+  "fiscal_autonomy_mun", "transfer_dependence_mun",
+  "fpm_dependence_mun",  "edu_share_mun",
+  "budget_execution_mun","debt_ratio_mun",
+  "adm_capacity_score_mun"
+))
 
 # ============================================================
 # LOAD STATE FINBRA FILES
+# load_finbra() auto-cleans Conta, Coluna, Valor
 # ============================================================
 
 cat("\nLoading state FINBRA files...\n")
@@ -264,27 +217,9 @@ est_ic  <- load_finbra(PATH_EST_IC)
 est_ie  <- load_finbra(PATH_EST_IE)
 est_iab <- load_finbra(PATH_EST_IAB)
 
-# Clean account names and values
-for (df in list(est_ic, est_ie, est_iab)) {
-  df$Conta  <- clean_conta(df$Conta)
-  df$Coluna <- clean_conta(df$Coluna)
-  df$Valor  <- as.numeric(gsub(",", ".", df$Valor))
-}
-
-# Re-assign after cleaning (list doesn't modify in place)
-est_ic$Conta   <- clean_conta(est_ic$Conta)
-est_ic$Coluna  <- clean_conta(est_ic$Coluna)
-est_ic$Valor   <- as.numeric(gsub(",", ".", est_ic$Valor))
-est_ie$Conta   <- clean_conta(est_ie$Conta)
-est_ie$Coluna  <- clean_conta(est_ie$Coluna)
-est_ie$Valor   <- as.numeric(gsub(",", ".", est_ie$Valor))
-est_iab$Conta  <- clean_conta(est_iab$Conta)
-est_iab$Coluna <- clean_conta(est_iab$Coluna)
-est_iab$Valor  <- as.numeric(gsub(",", ".", est_iab$Valor))
-
-cat("State I-C rows:", nrow(est_ic),
+cat("State I-C  rows:", nrow(est_ic),
     "| States:", n_distinct(est_ic$UF), "\n")
-cat("State I-E rows:", nrow(est_ie),
+cat("State I-E  rows:", nrow(est_ie),
     "| States:", n_distinct(est_ie$UF), "\n")
 cat("State I-AB rows:", nrow(est_iab),
     "| States:", n_distinct(est_iab$UF), "\n")
@@ -361,6 +296,7 @@ est_divida <- est_iab %>%
 
 # ============================================================
 # MERGE AND BUILD STATE INDICATORS
+# All variables suffixed with _est for clarity in master merge
 # ============================================================
 
 cat("\nMerging and building state indicators...\n")
@@ -369,33 +305,30 @@ finbra_est <- est_receitas %>%
   left_join(est_despesas, by = "UF") %>%
   left_join(est_divida,   by = "UF") %>%
   mutate(
-    fiscal_autonomy     = receita_propria / receita_total,
-    transfer_dependence = transf_total / receita_total,
-    edu_share           = desp_educacao / desp_liquidadas,
-    budget_execution    = desp_liquidadas / desp_empenhadas,
-    debt_ratio          = passivo_circulante / receita_total,
-    adm_capacity_score  = rowMeans(
+    fiscal_autonomy_est     = receita_propria / receita_total,
+    transfer_dependence_est = transf_total / receita_total,
+    edu_share_est           = desp_educacao / desp_liquidadas,
+    budget_execution_est    = desp_liquidadas / desp_empenhadas,
+    debt_ratio_est          = (passivo_circulante + passivo_nao_circ) /
+                               receita_total,
+    adm_capacity_score_est  = rowMeans(
       scale(cbind(
-        fiscal_autonomy,
-        -transfer_dependence,
-        edu_share,
-        budget_execution,
-        -debt_ratio
+        fiscal_autonomy_est,
+        -transfer_dependence_est,
+        edu_share_est,
+        budget_execution_est,
+        -debt_ratio_est
       )), na.rm = TRUE
     )
   )
 
 cat("State indicators built for:", nrow(finbra_est), "states\n")
 
-cat("\n--- State indicator diagnostics ---\n")
-for (ind in c("fiscal_autonomy", "transfer_dependence",
-              "edu_share", "budget_execution",
-              "debt_ratio", "adm_capacity_score")) {
-  vals <- finbra_est[[ind]]
-  cat(sprintf("%-25s mean=%.3f | sd=%.3f | NA=%d\n",
-              ind, mean(vals, na.rm=TRUE),
-              sd(vals, na.rm=TRUE), sum(is.na(vals))))
-}
+report_indicators(finbra_est, c(
+  "fiscal_autonomy_est", "transfer_dependence_est",
+  "edu_share_est",       "budget_execution_est",
+  "debt_ratio_est",      "adm_capacity_score_est"
+))
 
 # ============================================================
 # LOAD AND CLEAN CAPAG (ROBUSTNESS CHECK VARIABLES)
@@ -421,70 +354,46 @@ capag_mun <- read_excel(PATH_CAPAG_MUN, skip = 2) %>%
   ) %>%
   select(CO_MUNICIPIO, nome_municipio, uf, capag,
          ind1_valor, ind1_nota, ind2_valor, ind2_nota,
-         ind3_valor, ind3_nota, icf, dca_2024, capag_rebaixada) %>%
+         ind3_valor, ind3_nota, icf, dca_2024,
+         capag_rebaixada) %>%
   mutate(
-    capag_numeric = case_when(
-      capag == "A"  ~ 4,
-      capag == "B"  ~ 3,
-      capag == "C"  ~ 2,
-      capag == "D"  ~ 1,
-      TRUE          ~ NA_real_
-    )
+    CO_MUNICIPIO  = as.character(CO_MUNICIPIO),
+    capag_numeric = capag_to_numeric(capag)
   )
 
 cat("Municipal CAPAG rows:", nrow(capag_mun), "\n")
-cat("CAPAG grade distribution:\n")
-print(table(capag_mun$capag, useNA = "always"))
+report_table(capag_mun, "capag", "Municipal CAPAG grade")
 
-capag_est <- fread(PATH_CAPAG_EST, encoding = "Latin-1") %>%
-  rename(sg_uf = UF) %>%
+capag_est <- load_br_csv(PATH_CAPAG_EST) %>%
+  rename(SG_UF = UF) %>%
   rename_with(~ "capag_estado",   matches("Classifica")) %>%
   rename_with(~ "qualidade_info", matches("Qualidade")) %>%
   rename_with(~ "observacao",     matches("Observa")) %>%
-  select(sg_uf, capag_estado, qualidade_info) %>%
+  select(SG_UF, capag_estado, qualidade_info) %>%
   mutate(
     capag_estado_base    = str_extract(capag_estado, "^[A-D]"),
-    capag_estado_numeric = case_when(
-      capag_estado_base == "A" ~ 4,
-      capag_estado_base == "B" ~ 3,
-      capag_estado_base == "C" ~ 2,
-      capag_estado_base == "D" ~ 1,
-      TRUE ~ NA_real_
-    )
+    capag_estado_numeric = capag_to_numeric(capag_estado_base)
   )
 
 cat("State CAPAG rows:", nrow(capag_est), "\n")
-cat("State CAPAG distribution:\n")
-print(table(capag_est$capag_estado, useNA = "always"))
+report_table(capag_est, "capag_estado", "State CAPAG grade")
 
 # ============================================================
 # FINAL CHECKS
 # ============================================================
 
-cat("\n--- Final dimensions ---\n")
-cat("finbra_municipios:", nrow(finbra_mun), "rows |",
-    ncol(finbra_mun), "cols\n")
-cat("finbra_estados:", nrow(finbra_est), "rows |",
-    ncol(finbra_est), "cols\n")
-cat("capag_municipios:", nrow(capag_mun), "rows |",
-    ncol(capag_mun), "cols\n")
-cat("capag_estados:", nrow(capag_est), "rows |",
-    ncol(capag_est), "cols\n")
+report_dims(finbra_mun,  "finbra_municipios")
+report_dims(finbra_est,  "finbra_estados")
+report_dims(capag_mun,   "capag_municipios")
+report_dims(capag_est,   "capag_estados")
 
 # ============================================================
 # SAVE
 # ============================================================
 
-fwrite(finbra_mun, PATH_OUT_MUN, sep = ";", bom = TRUE)
-cat("\nSaved finbra_municipios to", PATH_OUT_MUN, "\n")
-
-fwrite(finbra_est, PATH_OUT_EST, sep = ";", bom = TRUE)
-cat("Saved finbra_estados to", PATH_OUT_EST, "\n")
-
-fwrite(capag_mun, PATH_OUT_CAPAG_MUN, sep = ";", bom = TRUE)
-cat("Saved capag_municipios to", PATH_OUT_CAPAG_MUN, "\n")
-
-fwrite(capag_est, PATH_OUT_CAPAG_EST, sep = ";", bom = TRUE)
-cat("Saved capag_estados to", PATH_OUT_CAPAG_EST, "\n")
+save_processed(finbra_mun,  PATH_OUT_MUN)
+save_processed(finbra_est,  PATH_OUT_EST)
+save_processed(capag_mun,   PATH_OUT_CAPAG_MUN)
+save_processed(capag_est,   PATH_OUT_CAPAG_EST)
 
 cat("\nScript 03 complete.\n")
