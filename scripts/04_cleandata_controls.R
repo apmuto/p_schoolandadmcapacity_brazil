@@ -1,5 +1,5 @@
 # ==================================================
-# 04-cleandata-controls.R
+# 04_cleandata_controls.R
 # Project: Municipal administrative capacity and
 #          secondary school accessibility in Brazil
 # Goal: Build control variables for analysis.
@@ -16,6 +16,7 @@
 # Date: 2025
 # ==================================================
 
+source("scripts/00_functions_misc.R")
 library(tidyverse)
 library(sidrar)
 library(data.table)
@@ -68,12 +69,12 @@ state_capitals <- tribble(
 cat("State capitals defined:", nrow(state_capitals), "\n")
 
 # ============================================================
-# LOAD CESCOLA — SOURCE FOR COORDINATES AND URBAN SHARE
+# LOAD CESCOLA
 # ============================================================
 
 cat("\nLoading cescola_media...\n")
-cescola <- fread(PATH_CESCOLA, encoding = "Latin-1", sep = ";")
-cat("Rows:", nrow(cescola), "\n")
+cescola <- load_br_csv(PATH_CESCOLA)
+report_dims(cescola, "cescola_media")
 
 # ============================================================
 # MUNICIPALITY REPRESENTATIVE POINTS
@@ -95,7 +96,6 @@ mun_coords <- cescola %>%
 cat("Municipality coordinates computed for:",
     nrow(mun_coords), "municipalities\n")
 
-# Convert to sf points (WGS84)
 mun_pts <- st_as_sf(mun_coords,
                     coords = c("lon", "lat"),
                     crs = 4326)
@@ -108,9 +108,9 @@ cat("\nComputing urban share...\n")
 urban_share <- cescola %>%
   group_by(CO_MUNICIPIO) %>%
   summarise(
-    n_schools   = n(),
-    n_urban     = sum(TP_LOCALIZACAO == 1, na.rm = TRUE),
-    urban_share = n_urban / n_schools,
+    n_schools        = n(),
+    n_urban          = sum(TP_LOCALIZACAO == 1, na.rm = TRUE),
+    urban_share_mun  = n_urban / n_schools,
     .groups = "drop"
   ) %>%
   mutate(CO_MUNICIPIO = as.character(CO_MUNICIPIO))
@@ -123,18 +123,16 @@ cat("Urban share computed for:", nrow(urban_share),
 # ============================================================
 
 cat("\nLoading and joining biomes...\n")
-sf::sf_use_s2(FALSE)  # disable s2 — fixes most topology errors
+sf::sf_use_s2(FALSE)
 biomas_raw <- st_read(PATH_BIOMAS, quiet = TRUE)
 biomas     <- st_transform(biomas_raw, crs = 4326) %>%
               st_make_valid()
 
-# Join each municipality point to the biome it falls in
 mun_bioma <- st_join(mun_pts,
                      biomas %>% select(Bioma, CD_Bioma),
                      join = st_within,
                      left = TRUE)
 
-# Fallback: nearest biome for any point outside all polygons
 missing <- is.na(mun_bioma$Bioma)
 cat("Municipalities outside biome polygons:", sum(missing), "\n")
 
@@ -147,8 +145,7 @@ if (sum(missing) > 0) {
   cat("Filled using nearest biome\n")
 }
 
-cat("\nBiome distribution:\n")
-print(table(mun_bioma$Bioma, useNA = "always"))
+report_table(mun_bioma %>% st_drop_geometry(), "Bioma", "Biome")
 
 # ============================================================
 # DISTANCE TO STATE CAPITAL
@@ -156,22 +153,18 @@ print(table(mun_bioma$Bioma, useNA = "always"))
 
 cat("\nComputing distance to state capital...\n")
 
-# Convert capitals to sf points
 capitals_sf <- st_as_sf(state_capitals,
                         coords = c("lon_cap", "lat_cap"),
                         crs = 4326)
 
-# Project both to SIRGAS 2000 Brazil Polyconic for
-# accurate distance in metres
 mun_proj <- st_transform(mun_pts, crs = 5880)
 cap_proj <- st_transform(capitals_sf, crs = 5880)
 
-# For each municipality compute distance to its state capital
 dist_km <- map_dbl(seq_len(nrow(mun_proj)), function(i) {
   uf  <- mun_proj$SG_UF[i]
   cap <- cap_proj %>% filter(SG_UF == uf)
   if (nrow(cap) == 0) return(NA_real_)
-  as.numeric(st_distance(mun_proj[i, ], cap)) / 1000
+  dist_km_sf(mun_proj[i, ], cap)
 })
 
 cat("Distance calculation complete\n")
@@ -180,18 +173,21 @@ cat("Mean distance to capital:",
 cat("Max distance to capital:",
     round(max(dist_km, na.rm = TRUE), 1), "km\n")
 
+sf::sf_use_s2(TRUE)
+
 # ============================================================
-# ASSEMBLE SPATIAL VARIABLES INTO CLEAN DATAFRAME
+# ASSEMBLE SPATIAL VARIABLES
 # ============================================================
 
 spatial_vars <- mun_bioma %>%
   st_drop_geometry() %>%
-  mutate(dist_capital_km = dist_km) %>%
-  select(CO_MUNICIPIO, SG_UF, Bioma, CD_Bioma, dist_capital_km) %>%
-  rename(bioma    = Bioma,
-         cd_bioma = CD_Bioma)
+  mutate(
+    dist_capital_km = dist_km,
+    bioma    = remove_accents(Bioma),
+    cd_bioma = CD_Bioma
+  ) %>%
+  select(CO_MUNICIPIO, SG_UF, bioma, cd_bioma, dist_capital_km)
 
-sf::sf_use_s2(TRUE)  # restore default
 # ============================================================
 # PULL MUNICIPAL CONTROLS FROM SIDRA
 # ============================================================
@@ -212,17 +208,17 @@ cat("Area rows:", nrow(area_raw), "\n")
 
 pop_clean <- pop_raw %>%
   select(CO_MUNICIPIO = `Município (Código)`,
-         pop = Valor, pop_year = Ano) %>%
+         pop_mun = Valor, pop_year = Ano) %>%
   mutate(CO_MUNICIPIO = as.character(CO_MUNICIPIO))
 
 gdp_clean <- gdp_raw %>%
   select(CO_MUNICIPIO = `Município (Código)`,
-         gdp_mil_reais = Valor, gdp_year = Ano) %>%
+         gdp_mil_reais_mun = Valor, gdp_year = Ano) %>%
   mutate(CO_MUNICIPIO = as.character(CO_MUNICIPIO))
 
 area_clean <- area_raw %>%
   select(CO_MUNICIPIO = `Município (Código)`,
-         area_km2 = Valor) %>%
+         area_km2_mun = Valor) %>%
   mutate(CO_MUNICIPIO = as.character(CO_MUNICIPIO))
 
 # ============================================================
@@ -237,36 +233,24 @@ controls_mun <- pop_clean %>%
   left_join(urban_share,  by = "CO_MUNICIPIO") %>%
   left_join(spatial_vars, by = "CO_MUNICIPIO") %>%
   mutate(
-    gdp_pc           = (gdp_mil_reais * 1000) / pop,
-    log_pop          = log(pop),
-    log_gdp_pc       = log(gdp_pc),
-    log_area         = log(area_km2),
-    pop_density      = pop / area_km2,
-    log_pop_density  = log(pop_density),
-    log_dist_capital = log(dist_capital_km + 1)
+    gdp_pc_mun          = (gdp_mil_reais_mun * 1000) / pop_mun,
+    log_pop_mun         = log(pop_mun),
+    log_gdp_pc_mun      = log(gdp_pc_mun),
+    log_area_mun        = log(area_km2_mun),
+    pop_density_mun     = pop_mun / area_km2_mun,
+    log_pop_density_mun = log(pop_density_mun),
+    log_dist_capital    = log(dist_capital_km + 1)
   )
 
-cat("Final rows:", nrow(controls_mun), "\n")
+report_dims(controls_mun, "controls_municipios")
 
-# ============================================================
-# DIAGNOSTICS
-# ============================================================
+report_indicators(controls_mun, c(
+  "log_pop_mun", "log_gdp_pc_mun", "log_area_mun",
+  "log_pop_density_mun", "urban_share_mun",
+  "dist_capital_km", "log_dist_capital"
+))
 
-cat("\n--- Municipal controls diagnostics ---\n")
-diag_vars <- c("log_pop", "log_gdp_pc", "log_area",
-               "log_pop_density", "urban_share",
-               "dist_capital_km", "log_dist_capital")
-
-for (v in diag_vars) {
-  vals <- controls_mun[[v]]
-  cat(sprintf("%-22s mean=%8.3f | sd=%7.3f | NA=%d\n",
-              v, mean(vals, na.rm = TRUE),
-              sd(vals, na.rm = TRUE),
-              sum(is.na(vals))))
-}
-
-cat("\nBiome distribution in final dataset:\n")
-print(table(controls_mun$bioma, useNA = "always"))
+report_table(controls_mun, "bioma", "Biome in final dataset")
 
 # ============================================================
 # STATE CONTROLS FROM SIDRA
@@ -282,62 +266,57 @@ area_est <- get_sidra(1301, variable = 615,
                       geo = "State", period = "2010")
 
 controls_est <- pop_est %>%
-  select(SG_UF = `Unidade da Federação (Código)`,
-         pop = Valor, pop_year = Ano) %>%
+  select(SG_UF   = `Unidade da Federação (Código)`,
+         pop_est = Valor, pop_year = Ano) %>%
   mutate(SG_UF = as.character(SG_UF)) %>%
   left_join(
     gdp_est %>%
       select(SG_UF = `Unidade da Federação (Código)`,
-             gdp_mil_reais = Valor, gdp_year = Ano) %>%
+             gdp_mil_reais_est = Valor, gdp_year = Ano) %>%
       mutate(SG_UF = as.character(SG_UF)),
     by = "SG_UF"
   ) %>%
   left_join(
     area_est %>%
       select(SG_UF = `Unidade da Federação (Código)`,
-             area_km2 = Valor) %>%
+             area_km2_est = Valor) %>%
       mutate(SG_UF = as.character(SG_UF)),
     by = "SG_UF"
   ) %>%
   mutate(
-    gdp_pc          = (gdp_mil_reais * 1000) / pop,
-    log_pop         = log(pop),
-    log_gdp_pc      = log(gdp_pc),
-    log_area        = log(area_km2),
-    pop_density     = pop / area_km2,
-    log_pop_density = log(pop_density)
+    # Fix numeric state codes to UF abbreviations
+    SG_UF               = state_code_to_uf(SG_UF),
+    gdp_pc_est          = (gdp_mil_reais_est * 1000) / pop_est,
+    log_pop_est         = log(pop_est),
+    log_gdp_pc_est      = log(gdp_pc_est),
+    log_area_est        = log(area_km2_est),
+    pop_density_est     = pop_est / area_km2_est,
+    log_pop_density_est = log(pop_density_est)
   )
 
 cat("State controls built for:", nrow(controls_est), "states\n")
 
-cat("\n--- State controls diagnostics ---\n")
-for (v in c("log_pop", "log_gdp_pc",
-            "log_area", "log_pop_density")) {
-  vals <- controls_est[[v]]
-  cat(sprintf("%-22s mean=%8.3f | sd=%7.3f | NA=%d\n",
-              v, mean(vals, na.rm = TRUE),
-              sd(vals, na.rm = TRUE),
-              sum(is.na(vals))))
-}
+report_indicators(controls_est, c(
+  "log_pop_est", "log_gdp_pc_est",
+  "log_area_est", "log_pop_density_est"
+))
 
 # ============================================================
 # FINAL CHECKS
 # ============================================================
 
-cat("\n--- Final dimensions ---\n")
-cat("controls_municipios:", nrow(controls_mun), "rows |",
-    ncol(controls_mun), "cols\n")
-cat("controls_estados:", nrow(controls_est), "rows |",
-    ncol(controls_est), "cols\n")
+report_dims(controls_mun, "controls_municipios")
+report_dims(controls_est, "controls_estados")
+
+# Verify state codes converted correctly
+cat("\nState UF codes sample:\n")
+print(head(controls_est$SG_UF, 10))
 
 # ============================================================
 # SAVE
 # ============================================================
 
-fwrite(controls_mun, PATH_OUT_MUN, sep = ";", bom = TRUE)
-cat("\nSaved controls_municipios to", PATH_OUT_MUN, "\n")
-
-fwrite(controls_est, PATH_OUT_EST, sep = ";", bom = TRUE)
-cat("Saved controls_estados to", PATH_OUT_EST, "\n")
+save_processed(controls_mun, PATH_OUT_MUN)
+save_processed(controls_est, PATH_OUT_EST)
 
 cat("\nScript 04 complete.\n")
