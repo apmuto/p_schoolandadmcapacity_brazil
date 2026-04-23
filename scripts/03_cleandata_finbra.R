@@ -322,6 +322,9 @@ finbra_est <- est_receitas %>%
     )
   )
 
+finbra_est <- finbra_est %>%
+  rename(SG_UF = UF) 
+
 cat("State indicators built for:", nrow(finbra_est), "states\n")
 
 report_indicators(finbra_est, c(
