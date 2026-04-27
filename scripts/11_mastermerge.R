@@ -106,6 +106,7 @@ cat("Overlap escola <-> ctrl_est:",
 cat("\n--- Building master_full ---\n")
 
 master_full <- escola %>%
+  mutate(log_mat_med = log(QT_MAT_MED + 1)) %>%
 
   # Municipal fiscal capacity
   left_join(
@@ -147,8 +148,9 @@ master_full <- escola %>%
     finbra_est %>%
       select(SG_UF,
              fiscal_autonomy_est, transfer_dependence_est,
-             edu_share_est, budget_execution_est,
-             debt_ratio_est, adm_capacity_score_est),
+             fpm_dependence_est, edu_share_est,
+             budget_execution_est, debt_ratio_est,
+             adm_capacity_score_est),
     by = "SG_UF"
   ) %>%
 
@@ -208,22 +210,33 @@ master_main <- master_full %>%
     TP_LOCALIZACAO_DIFERENCIADA, # indigenous/quilombola
     TP_DEPENDENCIA,              # federal/state/municipal/private
     QT_MAT_MED,                  # secondary enrollment
+    log_mat_med,                 # log enrollment — right skewed
 
     # --- OUTCOME VARIABLES ---
     infra_ok,
     edu_ok,
     edu_score,
 
-    # --- MUNICIPAL FISCAL CAPACITY (main model) ---
+    # --- BEHAVIORAL CAPACITY COMPOSITE (main IV) ---
+    # Built from: edu_share, budget_execution,
+    #             debt_ratio, fpm_dependence
     adm_capacity_score_mun,
-    fiscal_autonomy_mun,
-    transfer_dependence_mun,
+    adm_capacity_score_est,
+
+    # --- COMPOSITE COMPONENTS (for disaggregated models) ---
+    edu_share_mun,
+    budget_execution_mun,
+    debt_ratio_mun,
     fpm_dependence_mun,
 
-    # --- STATE FISCAL CAPACITY (robustness) ---
-    adm_capacity_score_est,
+    # --- STRUCTURAL FISCAL INDICATORS (separate controls) ---
+    # These measure fiscal position, not behavior
+    # Correlated with municipality size — use carefully
+    fiscal_autonomy_mun,
+    transfer_dependence_mun,
     fiscal_autonomy_est,
     transfer_dependence_est,
+    fpm_dependence_est,
 
     # --- MUNICIPAL CONTROLS ---
     log_pop_mun,
@@ -239,12 +252,9 @@ master_main <- master_full %>%
     log_pop_est,
     log_gdp_pc_est,
 
-    # --- ROBUSTNESS CHECK VARIABLES ---
+    # --- ROBUSTNESS ---
     capag_numeric,
-    capag_estado_numeric,
-    edu_share_mun,
-    budget_execution_mun,
-    debt_ratio_mun
+    capag_estado_numeric
   )
 
 report_dims(master_main, "master_main")
