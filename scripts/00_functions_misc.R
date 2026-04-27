@@ -193,5 +193,16 @@ state_code_to_uf <- function(code_vec) {
 dist_km_sf <- function(from_sf, to_sf) {
   as.numeric(sf::st_distance(from_sf, to_sf)) / 1000
 }
+# ============================================================
+# Winsorize a numeric vector at given percentile thresholds
+# Replaces extreme values with percentile bounds
+# Example: winsorize(x, 0.01) caps at p1 and p99
+# ============================================================
+
+winsorize <- function(x, p = 0.01) {
+  lo <- quantile(x, p,     na.rm = TRUE)
+  hi <- quantile(x, 1 - p, na.rm = TRUE)
+  pmax(pmin(x, hi), lo)
+}
 
 cat("00-functions.R loaded successfully\n")
