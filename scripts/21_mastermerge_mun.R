@@ -4,10 +4,12 @@
 #          secondary school accessibility in Brazil
 # Goal: Build municipality-level master dataset
 #       combining all cleaned data sources.
-#       Unit of analysis: municipality (5,571 rows)
-#       Main outcome: dist_nearest_school_km,
-#                     schools_per_10k
-#       Main IV: fiscal capacity indicators
+#       Unit of analysis: municipality (5,570 rows)
+# Main outcomes:
+#   mean_dist_school_km  — avg settlement-to-school
+#   pct_over_10km        — % settlements >10km
+#   pct_over_30km        — % settlements >30km
+#   schools_per_10k      — coverage density
 # Input:  data/processed/accessibility.csv
 #         data/processed/coverage.csv
 #         data/processed/finbra_municipios.csv
@@ -30,8 +32,8 @@ library(data.table)
 # CONSTANTS
 # ============================================================
 
-PATH_ACCESS    <- "data/processed/accessibility.csv"
-PATH_COVERAGE  <- "data/processed/coverage.csv"
+PATH_ACCESS     <- "data/processed/accessibility.csv"
+PATH_COVERAGE   <- "data/processed/coverage.csv"
 PATH_FINBRA_MUN <- "data/processed/finbra_municipios.csv"
 PATH_FINBRA_EST <- "data/processed/finbra_estados.csv"
 PATH_CAPAG_MUN  <- "data/processed/capag_municipios.csv"
@@ -47,9 +49,8 @@ PATH_OUT_MAIN   <- "data/processed/master_mun_main.csv"
 
 cat("Loading processed files...\n")
 
-acc <- load_br_csv(PATH_ACCESS) %>%
-  mutate(CO_MUNICIPIO = as.character(CO_MUNICIPIO)) %>%
-  select(-n_schools, -has_school)  # these come from coverage
+acc        <- load_br_csv(PATH_ACCESS) %>%
+              mutate(CO_MUNICIPIO = as.character(CO_MUNICIPIO))
 cov        <- load_br_csv(PATH_COVERAGE) %>%
               mutate(CO_MUNICIPIO = as.character(CO_MUNICIPIO))
 finbra_mun <- load_br_csv(PATH_FINBRA_MUN) %>%
@@ -72,49 +73,63 @@ report_dims(ctrl_mun,   "controls_municipios")
 report_dims(ctrl_est,   "controls_estados")
 
 # ============================================================
+# STANDARDIZE MERGE KEYS
+# ============================================================
+
+# Use coverage as base — has all 5,571 municipalities
+# accessibility only has 5,399 (municipalities with settlements)
+# Missing municipalities get NA for distance variables
+
+# ============================================================
 # CHECK MERGE KEY OVERLAPS
 # ============================================================
 
 cat("\n--- Merge key overlap checks ---\n")
-n_mun <- n_distinct(acc$CO_MUNICIPIO)
-cat("Base municipalities (accessibility):", n_mun, "\n")
+n_base <- n_distinct(cov$CO_MUNICIPIO)
+cat("Base municipalities (coverage):", n_base, "\n")
 
-cat("Overlap acc <-> finbra_mun:",
-    sum(unique(acc$CO_MUNICIPIO) %in%
-        finbra_mun$CO_MUNICIPIO), "/", n_mun, "\n")
-cat("Overlap acc <-> capag_mun:",
-    sum(unique(acc$CO_MUNICIPIO) %in%
-        capag_mun$CO_MUNICIPIO), "/", n_mun, "\n")
-cat("Overlap acc <-> ctrl_mun:",
-    sum(unique(acc$CO_MUNICIPIO) %in%
-        ctrl_mun$CO_MUNICIPIO), "/", n_mun, "\n")
-cat("Overlap acc <-> finbra_est:",
-    sum(unique(acc$SG_UF) %in%
+cat("Overlap cov <-> accessibility:",
+    sum(unique(cov$CO_MUNICIPIO) %in%
+        acc$CO_MUNICIPIO), "/", n_base, "\n")
+cat("Overlap cov <-> finbra_mun:",
+    sum(unique(cov$CO_MUNICIPIO) %in%
+        finbra_mun$CO_MUNICIPIO), "/", n_base, "\n")
+cat("Overlap cov <-> capag_mun:",
+    sum(unique(cov$CO_MUNICIPIO) %in%
+        capag_mun$CO_MUNICIPIO), "/", n_base, "\n")
+cat("Overlap cov <-> ctrl_mun:",
+    sum(unique(cov$CO_MUNICIPIO) %in%
+        ctrl_mun$CO_MUNICIPIO), "/", n_base, "\n")
+cat("Overlap cov <-> finbra_est:",
+    sum(unique(cov$SG_UF) %in%
         finbra_est$SG_UF), "/ 27\n")
-cat("Overlap acc <-> ctrl_est:",
-    sum(unique(acc$SG_UF) %in%
+cat("Overlap cov <-> ctrl_est:",
+    sum(unique(cov$SG_UF) %in%
         ctrl_est$SG_UF), "/ 27\n")
 
 # ============================================================
 # BUILD MASTER_MUN_FULL
-# Base: accessibility (5,570 municipalities)
+# Base: coverage (5,571 municipalities — most complete)
 # ============================================================
 
 cat("\n--- Building master_mun_full ---\n")
 
-master_mun_full <- acc %>%
+master_mun_full <- cov %>%
 
-  # Coverage indicators
+  # Accessibility — settlement-level distance measures
   left_join(
-    cov %>%
+    acc %>%
       select(CO_MUNICIPIO,
-             n_schools, n_schools_urban, n_schools_rural,
-             n_schools_mun, n_schools_state,
-             n_schools_fed, n_schools_priv,
-             total_enrollment,
-             schools_per_10k, enrollment_per_10k,
-             log_schools_per_10k, log_enrollment_per_10k,
-             coverage_cat),
+             n_settlements,
+             mean_dist_school_km,
+             median_dist_school_km,
+             max_dist_school_km,
+             log_mean_dist_school,
+             log_median_dist_school,
+             log_max_dist_school,
+             pct_over_10km,
+             pct_over_30km,
+             pct_over_50km),
     by = "CO_MUNICIPIO"
   ) %>%
 
@@ -140,12 +155,13 @@ master_mun_full <- acc %>%
     by = "CO_MUNICIPIO"
   ) %>%
 
-  # Additional municipal controls not in accessibility
-  left_join(
+  # Additional municipal controls
+left_join(
     ctrl_mun %>%
       select(CO_MUNICIPIO,
              area_km2_mun, pop_density_mun,
-             log_area_mun, log_pop_density_mun),
+             log_area_mun, log_pop_density_mun,
+             log_dist_capital),
     by = "CO_MUNICIPIO"
   ) %>%
 
@@ -176,13 +192,51 @@ master_mun_full <- acc %>%
              log_pop_est, log_gdp_pc_est,
              log_area_est, log_pop_density_est),
     by = "SG_UF"
-  )
+  ) %>%
 
-master_mun_full <- master_mun_full %>%
+  # Recreate has_school from n_schools
   mutate(has_school = n_schools > 0)
 
-check_merge(master_mun_full, nrow(acc), "master_mun_full")
+check_merge(master_mun_full, nrow(cov), "master_mun_full")
 report_dims(master_mun_full, "master_mun_full")
+
+# ============================================================
+# ADD DERIVED VARIABLES
+# ============================================================
+
+master_mun_full <- master_mun_full %>%
+  mutate(
+    # Urban/rural/mixed classification
+    urban_type = case_when(
+      urban_share_mun >= 0.8 ~ "Urban",
+      urban_share_mun >= 0.5 ~ "Mixed",
+      urban_share_mun <  0.5 ~ "Rural",
+      TRUE ~ NA_character_
+    ),
+
+    # Population size category
+    pop_type = case_when(
+      pop_mun >= 20000 ~ "Large",
+      pop_mun >= 5000  ~ "Medium",
+      pop_mun <  5000  ~ "Small",
+      TRUE ~ NA_character_
+    ),
+
+    # Region
+    CO_UF = as.integer(substr(CO_MUNICIPIO, 1, 2)),
+    regiao = case_when(
+      CO_UF %in% c(11,12,13,14,15,16,17) ~ "Norte",
+      CO_UF %in% c(21,22,23,24,25,26,27,28,29) ~ "Nordeste",
+      CO_UF %in% c(31,32,33,35) ~ "Sudeste",
+      CO_UF %in% c(41,42,43) ~ "Sul",
+      CO_UF %in% c(50,51,52,53) ~ "Centro-Oeste",
+      TRUE ~ NA_character_
+    ),
+    periphery = regiao %in% c("Norte", "Nordeste"),
+
+    # Log schools per 10k (for models)
+    log_schools_per_10k = log(schools_per_10k + 0.01)
+  )
 
 # ============================================================
 # MISSINGNESS CHECK
@@ -191,17 +245,18 @@ report_dims(master_mun_full, "master_mun_full")
 cat("\n--- Key variable missingness ---\n")
 report_missing(master_mun_full, c(
   "CO_MUNICIPIO", "SG_UF",
-  "dist_nearest_school_km", "schools_per_10k",
+  "mean_dist_school_km", "log_mean_dist_school",
+  "pct_over_10km", "pct_over_30km",
+  "schools_per_10k", "log_schools_per_10k",
   "adm_capacity_score_mun", "adm_capacity_score_est",
   "fiscal_autonomy_mun",
   "log_pop_mun", "log_gdp_pc_mun",
   "bioma", "dist_capital_km",
-  "capag_numeric", "capag_estado_numeric"
+  "capag_numeric"
 ))
 
 # ============================================================
 # BUILD MASTER_MUN_MAIN
-# Trimmed for main model — accessibility outcomes + IVs
 # ============================================================
 
 cat("\n--- Building master_mun_main ---\n")
@@ -209,16 +264,28 @@ cat("\n--- Building master_mun_main ---\n")
 master_mun_main <- master_mun_full %>%
   select(
     # --- IDENTIFIERS ---
-    CO_MUNICIPIO, SG_UF,
+    CO_MUNICIPIO, SG_UF, regiao, periphery,
+
+    # --- MUNICIPALITY CHARACTERISTICS ---
+    urban_type, pop_type,
+    urban_share_mun,
 
     # --- MAIN OUTCOME VARIABLES ---
+    # Distance measures (from settlement-level analysis)
+    mean_dist_school_km,
+    log_mean_dist_school,
+    median_dist_school_km,
+    max_dist_school_km,
+    pct_over_10km,
+    pct_over_30km,
+    pct_over_50km,
+
+    # Coverage measures
     has_school,
-    dist_nearest_school_km,  # distance to nearest school
-    log_dist_school,         # log version
-    schools_per_10k,         # coverage density
+    n_schools,
+    schools_per_10k,
     log_schools_per_10k,
-    enrollment_per_10k,      # enrollment coverage
-    n_schools,               # raw count
+    enrollment_per_10k,
 
     # --- BEHAVIORAL CAPACITY (main IV) ---
     adm_capacity_score_mun,
@@ -230,7 +297,7 @@ master_mun_main <- master_mun_full %>%
     debt_ratio_mun,
     fpm_dependence_mun,
 
-    # --- STRUCTURAL FISCAL (Tilly indicator) ---
+    # --- STRUCTURAL FISCAL (Tilly) ---
     fiscal_autonomy_mun,
     transfer_dependence_mun,
     fiscal_autonomy_est,
@@ -243,7 +310,6 @@ master_mun_main <- master_mun_full %>%
     log_gdp_pc_mun,
     log_area_mun,
     log_pop_density_mun,
-    urban_share_mun,
     bioma,
     dist_capital_km,
     log_dist_capital,
@@ -260,21 +326,25 @@ master_mun_main <- master_mun_full %>%
 report_dims(master_mun_main, "master_mun_main")
 
 # ============================================================
-# FINAL DIAGNOSTICS ON MAIN DATASET
+# FINAL DIAGNOSTICS
 # ============================================================
 
-report_table(master_mun_main, "has_school", "Has school")
-report_table(master_mun_main, "bioma",      "Biome")
+report_table(master_mun_main, "has_school",  "Has school")
+report_table(master_mun_main, "bioma",       "Biome")
+report_table(master_mun_main, "urban_type",  "Urban type")
+report_table(master_mun_main, "pop_type",    "Pop type")
+report_table(master_mun_main, "regiao",      "Region")
 
 report_indicators(master_mun_main, c(
-  "dist_nearest_school_km",
+  "mean_dist_school_km",
+  "log_mean_dist_school",
+  "pct_over_10km",
   "schools_per_10k",
+  "log_schools_per_10k",
   "adm_capacity_score_mun",
-  "adm_capacity_score_est",
   "fiscal_autonomy_mun",
   "log_pop_mun",
-  "log_gdp_pc_mun",
-  "dist_capital_km"
+  "log_gdp_pc_mun"
 ))
 
 # ============================================================
