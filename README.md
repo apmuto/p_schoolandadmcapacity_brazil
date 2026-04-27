@@ -76,3 +76,22 @@ Ana Paula Muto
 - Scale: 1:250,000
 - File: lm_bioma_250.shp
 - 6 biomes: Amazônia, Caatinga, Cerrado, Mata Atlântica, Pampa, Pantanal
+
+### geobr — Brazilian Administrative Boundaries
+- Source: IBGE via geobr R package
+- https://github.com/ipeaGIT/geobr
+- Year: 2020
+- Files pulled automatically via geobr::read_state() and
+  read_municipality()
+- Provides official IBGE codes (code_muni, abbrev_state)
+  used as merge keys throughout the pipeline
+- Replaces GADM as boundary source for cleaner IBGE code integration
+
+### GHSL SMOD — Global Human Settlement Layer
+- Source: European Commission Joint Research Centre
+- https://ghsl.jrc.ec.europa.eu/ghs_smod2023.php
+- Product: GHS-SMOD R2023A, Epoch 2020, 1km resolution
+- Projection: Mollweide (reprojected to WGS84 in script 02)
+- File: GHS_SMOD_E2020_GLOBE_R2023A_54009_1000_V2_0.tif
+- Settlement threshold: >= 13 (rural cluster and above)
+- Used in script 05 for accessibility distance calculations
