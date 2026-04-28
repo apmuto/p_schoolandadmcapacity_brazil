@@ -1,0 +1,5 @@
+urban_type,n,pct_no_school,mean_dist_km,mean_schools_10k,mean_pop,mean_fpm_dep,mean_fiscal_auto
+"",6,100,12.04,0,4130,0.408,0.027
+Mixed,1013,3.2,3.45,2.1,26463,0.282,0.072
+Rural,392,6.1,6.01,2.77,20478,0.276,0.061
+Urban,4160,5.2,2.29,1.97,42924,0.316,0.088
