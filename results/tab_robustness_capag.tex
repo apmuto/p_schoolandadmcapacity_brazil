@@ -1,0 +1,28 @@
+\begingroup
+\centering
+\begin{tabular}{lcccc}
+   \tabularnewline \midrule \midrule
+   Dependent Variable: & \multicolumn{4}{c}{log\_mean\_dist}\\
+   Model:                       & (1)      & (2)      & (3)             & (4)\\  
+   \midrule
+   \emph{Variables}\\
+   capag\_numeric               & -0.0014  & -0.0131  & 0.0171          & -0.0039\\   
+                                & (0.0144) & (0.0094) & (0.0131)        & (0.0087)\\   
+   adm\_capacity\_score\_mun    &          &          & -0.1481$^{***}$ & -0.1050$^{***}$\\   
+                                &          &          & (0.0337)        & (0.0258)\\   
+   \midrule
+   \emph{Fixed-effects}\\
+   SG\_UF                       &          & Yes      &                 & Yes\\  
+   \midrule
+   \emph{Fit statistics}\\
+   Observations                 & 3,478    & 3,478    & 3,469           & 3,469\\  
+   R$^2$                        & 0.55206  & 0.63056  & 0.56724         & 0.63668\\  
+   Within R$^2$                 &          & 0.31081  &                 & 0.32105\\  
+   \midrule \midrule
+   \multicolumn{5}{l}{\emph{Clustered (SG\_UF) standard-errors in parentheses}}\\
+   \multicolumn{5}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+\end{tabular}
+ 
+\par \raggedright 
+CAPAG subsample only (n = 3482 ). CAPAG numeric: A=4, B=3, C=2, D=1. Cols 3-4 include composite score alongside CAPAG for convergent validity. SE clustered by state.
+\par\endgroup

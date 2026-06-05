@@ -1,0 +1,33 @@
+\begin{table}
+\centering
+\caption{Administrative Capacity and Secondary School Accessibility}
+\centering
+\begin{tabular}[t]{lcccc}
+\toprule
+  & Model 1 & Model 2 & Model 3 & Model 4\\
+\midrule
+Fiscal autonomy & -0.822*** &  &  & \\
+ & (0.287) &  &  & \\
+Administrative capacity &  & -0.115*** & -0.084*** & \\
+ &  & (0.034) & (0.024) & \\
+Education spending share &  &  &  & 1.565***\\
+ &  &  &  & (0.182)\\
+Budget execution rate &  &  &  & 0.700**\\
+ &  &  &  & (0.343)\\
+Debt ratio &  &  &  & 0.027\\
+ &  &  &  & (0.017)\\
+FPM dependence &  &  &  & -0.855***\\
+ &  &  &  & (0.216)\\
+\midrule
+N & 5250 & 5252 & 5252 & 4742\\
+R2 & 0.515 & 0.523 & 0.603 & 0.539\\
+R2 Adj. & 0.514 & 0.522 & 0.600 & 0.538\\
+\bottomrule
+\multicolumn{5}{l}{\rule{0pt}{1em}* p $<$ 0.1, ** p $<$ 0.05, *** p $<$ 0.01}\\
+\multicolumn{5}{l}{\rule{0pt}{1em}*** p $<$ 0.01, ** p $<$ 0.05, * p $<$ 0.1.}\\
+\multicolumn{5}{l}{\rule{0pt}{1em}Controls: log population, log GDP pc, log area, urban share, log distance to capital, biome FE.}\\
+\multicolumn{5}{l}{\rule{0pt}{1em}State-level fiscal autonomy included in M1--M4 without state FE.}\\
+\multicolumn{5}{l}{\rule{0pt}{1em}Clustered SE by state in parentheses.}\\
+\multicolumn{5}{l}{\rule{0pt}{1em}AIC not directly comparable between M3 (feols) and M1/M2/M4 (lm).}\\
+\end{tabular}
+\end{table}

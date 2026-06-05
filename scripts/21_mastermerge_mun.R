@@ -32,14 +32,16 @@ library(data.table)
 # CONSTANTS
 # ============================================================
 
-PATH_ACCESS     <- "data/processed/accessibility.csv"
-PATH_COVERAGE   <- "data/processed/coverage.csv"
+# accessibility_mun.csv contains both distance and coverage variables
+# (merged in script 11 — coverage.csv no longer exists separately)
+PATH_ACCESS     <- "data/processed/accessibility_mun.csv"
 PATH_FINBRA_MUN <- "data/processed/finbra_municipios.csv"
 PATH_FINBRA_EST <- "data/processed/finbra_estados.csv"
 PATH_CAPAG_MUN  <- "data/processed/capag_municipios.csv"
 PATH_CAPAG_EST  <- "data/processed/capag_estados.csv"
 PATH_CTRL_MUN   <- "data/processed/controls_municipios.csv"
 PATH_CTRL_EST   <- "data/processed/controls_estados.csv"
+PATH_MUNIC      <- "data/processed/munic_clean.csv"
 PATH_OUT_FULL   <- "data/processed/master_mun_full.csv"
 PATH_OUT_MAIN   <- "data/processed/master_mun_main.csv"
 
@@ -51,8 +53,6 @@ cat("Loading processed files...\n")
 
 acc        <- load_br_csv(PATH_ACCESS) %>%
               mutate(CO_MUNICIPIO = as.character(CO_MUNICIPIO))
-cov        <- load_br_csv(PATH_COVERAGE) %>%
-              mutate(CO_MUNICIPIO = as.character(CO_MUNICIPIO))
 finbra_mun <- load_br_csv(PATH_FINBRA_MUN) %>%
               mutate(CO_MUNICIPIO = as.character(CO_MUNICIPIO))
 finbra_est <- load_br_csv(PATH_FINBRA_EST)
@@ -62,49 +62,52 @@ capag_est  <- load_br_csv(PATH_CAPAG_EST)
 ctrl_mun   <- load_br_csv(PATH_CTRL_MUN) %>%
               mutate(CO_MUNICIPIO = as.character(CO_MUNICIPIO))
 ctrl_est   <- load_br_csv(PATH_CTRL_EST)
+munic      <- load_br_csv(PATH_MUNIC) %>%
+              mutate(CO_MUNICIPIO = as.character(cod_mun)) %>%
+              select(-cod_mun, -uf)   # uf duplicates SG_UF already in acc
 
-report_dims(acc,        "accessibility")
-report_dims(cov,        "coverage")
+report_dims(acc,        "accessibility_mun")
 report_dims(finbra_mun, "finbra_municipios")
 report_dims(finbra_est, "finbra_estados")
 report_dims(capag_mun,  "capag_municipios")
 report_dims(capag_est,  "capag_estados")
 report_dims(ctrl_mun,   "controls_municipios")
 report_dims(ctrl_est,   "controls_estados")
+report_dims(munic,      "munic_clean")
 
 # ============================================================
 # STANDARDIZE MERGE KEYS
 # ============================================================
 
-# Use coverage as base — has all 5,571 municipalities
-# accessibility only has 5,399 (municipalities with settlements)
-# Missing municipalities get NA for distance variables
+# Use accessibility_mun as base — contains both distance and coverage
+# for all 5,571 municipalities (municipalities without settlements get
+# NA for distance variables but are present for coverage variables)
 
 # ============================================================
 # CHECK MERGE KEY OVERLAPS
 # ============================================================
 
 cat("\n--- Merge key overlap checks ---\n")
-n_base <- n_distinct(cov$CO_MUNICIPIO)
-cat("Base municipalities (coverage):", n_base, "\n")
+n_base <- n_distinct(acc$CO_MUNICIPIO)
+cat("Base municipalities (accessibility_mun):", n_base, "\n")
 
-cat("Overlap cov <-> accessibility:",
-    sum(unique(cov$CO_MUNICIPIO) %in%
-        acc$CO_MUNICIPIO), "/", n_base, "\n")
-cat("Overlap cov <-> finbra_mun:",
-    sum(unique(cov$CO_MUNICIPIO) %in%
+cat("Overlap acc <-> finbra_mun:",
+    sum(unique(acc$CO_MUNICIPIO) %in%
         finbra_mun$CO_MUNICIPIO), "/", n_base, "\n")
-cat("Overlap cov <-> capag_mun:",
-    sum(unique(cov$CO_MUNICIPIO) %in%
+cat("Overlap acc <-> capag_mun:",
+    sum(unique(acc$CO_MUNICIPIO) %in%
         capag_mun$CO_MUNICIPIO), "/", n_base, "\n")
-cat("Overlap cov <-> ctrl_mun:",
-    sum(unique(cov$CO_MUNICIPIO) %in%
+cat("Overlap acc <-> ctrl_mun:",
+    sum(unique(acc$CO_MUNICIPIO) %in%
         ctrl_mun$CO_MUNICIPIO), "/", n_base, "\n")
-cat("Overlap cov <-> finbra_est:",
-    sum(unique(cov$SG_UF) %in%
+cat("Overlap acc <-> munic:",
+    sum(unique(acc$CO_MUNICIPIO) %in%
+        munic$CO_MUNICIPIO), "/", n_base, "\n")
+cat("Overlap acc <-> finbra_est:",
+    sum(unique(acc$SG_UF) %in%
         finbra_est$SG_UF), "/ 27\n")
-cat("Overlap cov <-> ctrl_est:",
-    sum(unique(cov$SG_UF) %in%
+cat("Overlap acc <-> ctrl_est:",
+    sum(unique(acc$SG_UF) %in%
         ctrl_est$SG_UF), "/ 27\n")
 
 # ============================================================
@@ -114,24 +117,7 @@ cat("Overlap cov <-> ctrl_est:",
 
 cat("\n--- Building master_mun_full ---\n")
 
-master_mun_full <- cov %>%
-
-  # Accessibility — settlement-level distance measures
-  left_join(
-    acc %>%
-      select(CO_MUNICIPIO,
-             n_settlements,
-             mean_dist_school_km,
-             median_dist_school_km,
-             max_dist_school_km,
-             log_mean_dist_school,
-             log_median_dist_school,
-             log_max_dist_school,
-             pct_over_10km,
-             pct_over_30km,
-             pct_over_50km),
-    by = "CO_MUNICIPIO"
-  ) %>%
+master_mun_full <- acc %>%
 
   # Municipal fiscal capacity
   left_join(
@@ -156,12 +142,12 @@ master_mun_full <- cov %>%
   ) %>%
 
   # Additional municipal controls
+  # Note: log_dist_capital already in acc from script 11 — excluded here
 left_join(
     ctrl_mun %>%
       select(CO_MUNICIPIO,
              area_km2_mun, pop_density_mun,
-             log_area_mun, log_pop_density_mun,
-             log_dist_capital),
+             log_area_mun, log_pop_density_mun),
     by = "CO_MUNICIPIO"
   ) %>%
 
@@ -194,10 +180,39 @@ left_join(
     by = "SG_UF"
   ) %>%
 
-  # Recreate has_school from n_schools
-  mutate(has_school = n_schools > 0)
+  # ── MUNIC 2023: municipal HR staffing & institutional planning ──────────────
+  # Source: IBGE Pesquisa de Informações Básicas Municipais 2023 (script 06)
+  #
+  # mreh_* : staff counts and share of permanent workers — behavioural
+  #          capacity dimension complementing the fiscal indicators
+  # mpri_* : binary indicators for early-childhood plan / council / committee
+  #          — institutional planning capacity dimension
+  # munic_planning_index : additive 0–3 composite of the three mpri_ items
+  #
+  # Join key: CO_MUNICIPIO (7-digit IBGE code, character)
+  # Expected match: ~5,257 / 5,570 MUNIC municipalities
+  left_join(
+    munic %>%
+      select(CO_MUNICIPIO,
+             mreh_estatutario_mun,
+             mreh_clt_mun,
+             mreh_comissionado_mun,
+             mreh_temporario_mun,
+             mreh_terceirizado_mun,
+             mreh_total_mun,
+             mreh_pct_estavel_mun,
+             mreh_secretaria_mun,
+             mpri_plano_mun,
+             mpri_conselho_mun,
+             mpri_comite_mun,
+             munic_planning_index),
+    by = "CO_MUNICIPIO"
+  ) %>%
 
-check_merge(master_mun_full, nrow(cov), "master_mun_full")
+  # has_school already in acc from script 11 — ensure logical type
+  mutate(has_school = as.logical(has_school))
+
+check_merge(master_mun_full, nrow(acc), "master_mun_full")
 report_dims(master_mun_full, "master_mun_full")
 
 # ============================================================
@@ -245,7 +260,7 @@ master_mun_full <- master_mun_full %>%
 cat("\n--- Key variable missingness ---\n")
 report_missing(master_mun_full, c(
   "CO_MUNICIPIO", "SG_UF",
-  "mean_dist_school_km", "log_mean_dist_school",
+  "mean_dist_km", "log_mean_dist",
   "pct_over_10km", "pct_over_30km",
   "schools_per_10k", "log_schools_per_10k",
   "adm_capacity_score_mun", "adm_capacity_score_est",
@@ -272,13 +287,17 @@ master_mun_main <- master_mun_full %>%
 
     # --- MAIN OUTCOME VARIABLES ---
     # Distance measures (from settlement-level analysis)
-    mean_dist_school_km,
-    log_mean_dist_school,
-    median_dist_school_km,
-    max_dist_school_km,
+    mean_dist_km,
+    log_mean_dist,
+    median_dist_km,
+    max_dist_km,
     pct_over_10km,
     pct_over_30km,
     pct_over_50km,
+    # Municipal-school-only distances (robustness)
+    mean_dist_mun_km,
+    log_mean_dist_mun,
+    pct_over_30km_mun,
 
     # Coverage measures
     has_school,
@@ -314,6 +333,17 @@ master_mun_main <- master_mun_full %>%
     dist_capital_km,
     log_dist_capital,
 
+    # --- MUNIC 2023: HR staffing ---
+    mreh_total_mun,
+    mreh_pct_estavel_mun,    # share permanent/stable workers
+    mreh_secretaria_mun,     # has dedicated secretariat (0/1)
+
+    # --- MUNIC 2023: institutional planning ---
+    mpri_plano_mun,          # has early-childhood plan (0/1)
+    mpri_conselho_mun,       # has first-childhood council (0/1)
+    mpri_comite_mun,         # has inter-sector committee (0/1)
+    munic_planning_index,    # additive 0-3 composite
+
     # --- STATE CONTROLS ---
     log_pop_est,
     log_gdp_pc_est,
@@ -336,8 +366,8 @@ report_table(master_mun_main, "pop_type",    "Pop type")
 report_table(master_mun_main, "regiao",      "Region")
 
 report_indicators(master_mun_main, c(
-  "mean_dist_school_km",
-  "log_mean_dist_school",
+  "mean_dist_km",
+  "log_mean_dist",
   "pct_over_10km",
   "schools_per_10k",
   "log_schools_per_10k",

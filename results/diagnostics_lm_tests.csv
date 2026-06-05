@@ -1,0 +1,9 @@
+Model;Test;Stat;p
+Composite;RSlag;907.2901;0
+Composite;RSerr;929.7938;0
+Composite;adjRSlag;59.2226;0
+Composite;adjRSerr;81.7262;0
+Disaggregated;RSlag;776.0324;0
+Disaggregated;RSerr;801.3586;0
+Disaggregated;adjRSlag;57.0748;0
+Disaggregated;adjRSerr;82.401;0

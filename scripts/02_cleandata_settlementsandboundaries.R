@@ -31,14 +31,14 @@ library(geobr)
 PATH_RAWSMOD    <- "data/raw/GHS_SMOD_E2020_GLOBE_R2023A_54009_1000_V2_0.tif"
 PATH_STATES     <- "data/processed/brazil_states.gpkg"
 PATH_MUNIC      <- "data/processed/brazil_municipalities.gpkg"
-PATH_SETTLE_13  <- "data/processed/settlement_centroids_13.gpkg"
+PATH_SETTLE_12  <- "data/processed/settlement_centroids_12.gpkg"
 PATH_SMOD_OUT   <- "data/processed/smod_brazil_wgs84.tif"
 
 # SMOD classification thresholds:
 # 10=water, 11=very low density, 12=low density rural
 # 13=rural cluster, 21=suburban, 22=semi-dense urban
 # 23=dense urban, 30=urban centre
-# Settlement defined as >= 13 (rural cluster and above)
+# Settlement defined as >= 12 (rural cluster and above)
 
 # ============================================================
 # LOAD BOUNDARIES VIA GEOBR
@@ -141,24 +141,24 @@ writeRaster(smod_brazil, PATH_SMOD_OUT, overwrite = TRUE)
 cat("Saved Brazil SMOD raster to", PATH_SMOD_OUT, "\n")
 
 # ============================================================
-# EXTRACT SETTLEMENT CENTROIDS (THRESHOLD >= 13)
-# threshold 13 = rural cluster and above
+# EXTRACT SETTLEMENT CENTROIDS (THRESHOLD >= 12)
+# threshold 12 = rural cluster and above
 # 75,600 points — manageable in memory
 # threshold 11 has 9M+ points — use raster directly in script 05
 # ============================================================
+cat("\nExtracting settlement centroids (SMOD >= 12)...\n")
 
-cat("\nExtracting settlement centroids (SMOD >= 13)...\n")
-
-smod_settle_13     <- smod_brazil >= 13
-settlement_pts_13  <- as.points(
-  mask(smod_brazil, smod_settle_13, maskvalues = FALSE)
+smod_settle_12     <- smod_brazil >= 12
+settlement_pts_12  <- as.points(
+  mask(smod_brazil, smod_settle_12, maskvalues = FALSE)
 )
-settlement_sf_13 <- st_as_sf(settlement_pts_13)
-names(settlement_sf_13)[1] <- "smod_class"
+settlement_sf_12 <- st_as_sf(settlement_pts_12)
+names(settlement_sf_12)[1] <- "smod_class"
 
-settlement_sf_13 <- settlement_sf_13 %>%
+settlement_sf_12 <- settlement_sf_12 %>%
   mutate(
     smod_label = case_when(
+      smod_class == 12 ~ "low_density_rural",
       smod_class == 13 ~ "rural_cluster",
       smod_class == 21 ~ "suburban",
       smod_class == 22 ~ "semi_dense_urban",
@@ -168,10 +168,9 @@ settlement_sf_13 <- settlement_sf_13 %>%
     )
   )
 
-cat("Settlement points (threshold 13):", nrow(settlement_sf_13), "\n")
+cat("Settlement points (threshold 12):", nrow(settlement_sf_12), "\n")
 cat("Distribution:\n")
-print(table(settlement_sf_13$smod_label))
-
+print(table(settlement_sf_12$smod_label))
 # ============================================================
 # SAVE ALL OUTPUTS
 # ============================================================
@@ -184,8 +183,8 @@ st_write(municipalities_clean, PATH_MUNIC,
          delete_dsn = TRUE, quiet = TRUE)
 cat("Saved municipalities to", PATH_MUNIC, "\n")
 
-st_write(settlement_sf_13, PATH_SETTLE_13,
+st_write(settlement_sf_12, PATH_SETTLE_12,
          delete_dsn = TRUE, quiet = TRUE)
-cat("Saved settlement centroids to", PATH_SETTLE_13, "\n")
+cat("Saved settlement centroids to", PATH_SETTLE_12, "\n")
 
 cat("\nScript 02 complete.\n")

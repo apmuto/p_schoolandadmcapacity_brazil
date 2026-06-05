@@ -1,11 +1,9 @@
 # ==================================================
-# 00-functions.R
+# 00_functions_misc.R
 # Project: Municipal administrative capacity and
 #          secondary school accessibility in Brazil
-# Goal: Define reusable functions used across all
-#       cleaning and analysis scripts.
-# Usage: source("scripts/00-functions.R") at the
-#        top of every script that needs these.
+# Goal: Create models that can be reused across 
+#       multiple project scripts
 # Author: Ana Paula Muto
 # Date: 2025
 # ==================================================
@@ -17,8 +15,7 @@ library(data.table)
 # STRING CLEANING
 # ============================================================
 
-# Remove accents and convert to ASCII
-# Example: "São Paulo" -> "Sao Paulo"
+# Remove accents. Example: "São Paulo" -> "Sao Paulo"
 remove_accents <- function(x) {
   iconv(x, from = "UTF-8", to = "ASCII//TRANSLIT")
 }
@@ -28,8 +25,7 @@ clean_string <- function(x) {
   tolower(remove_accents(trimws(x)))
 }
 
-# Standardize column names to snake_case lowercase
-# Example: "Cod.IBGE" -> "cod_ibge"
+# Standardize column names to snake_case lowercase.
 clean_colnames <- function(df) {
   names(df) <- names(df) %>%
     tolower() %>%
@@ -40,13 +36,11 @@ clean_colnames <- function(df) {
 }
 
 # Remove surrounding quotes from FINBRA exported strings
-# Example: '"Receitas Brutas Realizadas"' -> 'Receitas Brutas Realizadas'
 clean_conta <- function(x) {
   gsub('^"|"$', "", x)
 }
 
 # Fix Brazilian decimal separator (comma -> period)
-# Example: "1.234,56" -> 1234.56
 fix_decimal <- function(x) {
   as.numeric(gsub(",", ".", x))
 }
@@ -62,7 +56,6 @@ load_br_csv <- function(path, ...) {
 }
 
 # Load FINBRA files — all have 3 metadata header rows
-# Handles encoding, separator, quotes and skip automatically
 load_finbra <- function(path) {
   df <- fread(path,
               encoding = "Latin-1",
@@ -70,14 +63,13 @@ load_finbra <- function(path) {
               fill     = TRUE,
               sep      = ";",
               skip     = 3)
-  # Clean account names and fix decimal separator
   df$Conta  <- clean_conta(df$Conta)
   df$Coluna <- clean_conta(df$Coluna)
   df$Valor  <- fix_decimal(df$Valor)
   df
 }
 
-# Save processed file (standard format for all outputs)
+# Save processed file standardized for all outputs)
 save_processed <- function(df, path) {
   fwrite(df, path, sep = ";", bom = TRUE)
   cat("Saved", nrow(df), "rows |", ncol(df),
@@ -95,7 +87,6 @@ report_dims <- function(df, label = "") {
 }
 
 # Print formatted missing value report
-# Usage: report_missing(df, c("LATITUDE", "CO_MUNICIPIO"))
 report_missing <- function(df, vars) {
   cat("\nMissing values:\n")
   for (v in vars) {
@@ -111,7 +102,6 @@ report_missing <- function(df, vars) {
 }
 
 # Print mean/sd/NA diagnostics for numeric variables
-# Usage: report_indicators(df, c("fiscal_autonomy", "edu_share"))
 report_indicators <- function(df, vars) {
   cat("\nIndicator diagnostics:\n")
   for (v in vars) {
@@ -193,6 +183,10 @@ state_code_to_uf <- function(code_vec) {
 dist_km_sf <- function(from_sf, to_sf) {
   as.numeric(sf::st_distance(from_sf, to_sf)) / 1000
 }
+
+robust_se <- function(model, cluster_var) {
+  coeftest(model, vcov = vcovCL(model, cluster = cluster_var))
+}
 # ============================================================
 # Winsorize a numeric vector at given percentile thresholds
 # Replaces extreme values with percentile bounds
@@ -206,3 +200,73 @@ winsorize <- function(x, p = 0.01) {
 }
 
 cat("00-functions.R loaded successfully\n")
+
+# ============================================================
+# MODEL CONSTANTS
+# (shared across 31_models_main.R, 81_robustcapag.R, 83_robustness_spatial.R)
+# ============================================================
+
+# Dependent variable
+DV_LOG_DIST     <- "log_mean_dist"       # log mean settlement-to-school distance
+DV_LOG_DIST_MUN <- "log_mean_dist_mun"   # log mean distance to municipal schools only
+
+# Core geographic and socioeconomic controls
+CONTROLS_GEO <- c(
+  "log_pop_mun",      # log municipal population
+  "log_gdp_pc_mun",   # log GDP per capita
+  "log_area_mun",     # log municipal area km²
+  "urban_share_mun",  # share of urban population
+  "log_dist_capital", # log distance to state capital
+  "bioma"             # biome fixed effects
+)
+
+# State-level capacity controls: used when no state FE
+# dropped automatically when state FE is included (collinear)
+CONTROLS_STATE_CAP <- c(
+  "adm_capacity_score_est", # state behavioral capacity composite
+  "fiscal_autonomy_est"     # state fiscal autonomy ratio
+)
+
+# Disaggregated behavioral capacity indicators
+VARS_COMPOSITE_COMPONENTS <- c(
+  "edu_share_mun",          # education spending / total liquidated
+  "budget_execution_mun",   # liquidated / committed spending
+  "debt_ratio_mun",         # total liabilities / total revenue
+  "fpm_dependence_mun"      # FPM transfers / total revenue
+)
+
+# ============================================================
+# MODEL HELPERS (fixest-based)
+# ============================================================
+
+# Build feols formula with optional state FE
+# Usage: make_model_formula("log_mean_dist", "adm_capacity_score_mun", state_fe = TRUE)
+make_model_formula <- function(dv, ivs, state_fe = FALSE) {
+  state_controls <- if (state_fe) NULL else CONTROLS_STATE_CAP
+  rhs_vars <- c(ivs, CONTROLS_GEO, state_controls)
+  rhs      <- paste(rhs_vars, collapse = " + ")
+  fe_part  <- if (state_fe) " | SG_UF" else ""
+  as.formula(paste(dv, "~", rhs, fe_part))
+}
+
+# Extract key coefficients from a feols model into a tidy tibble
+# Usage: extract_model_coef(m3, "adm_capacity_score_mun", "M3 Composite (no FE)")
+extract_model_coef <- function(model, vars, model_name) {
+  ct         <- fixest::coeftable(model)
+  vars_found <- intersect(vars, rownames(ct))
+  if (length(vars_found) == 0) return(NULL)
+  tibble::as_tibble(ct[vars_found, , drop = FALSE],
+                    rownames = "Variable") %>%
+    dplyr::rename(SE = `Std. Error`,
+                  t  = `t value`,
+                  p  = `Pr(>|t|)`) %>%
+    dplyr::mutate(
+      Model = model_name,
+      N     = as.integer(sum(fixest::obs(model))),
+      R2    = round(fixest::r2(model)["r2"], 3),
+      dplyr::across(c(Estimate, SE, t, p), ~ round(., 4))
+    )
+}
+
+#=================================================
+cat("Script 00_functions_misc.R complete.\n")

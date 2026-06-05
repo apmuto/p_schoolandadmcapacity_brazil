@@ -176,10 +176,58 @@ cat("Max distance to capital:",
 sf::sf_use_s2(TRUE)
 
 # ============================================================
-# ASSEMBLE SPATIAL VARIABLES
+# BIOME AND SG_UF — FROM BOUNDARIES, NOT SCHOOL COORDINATES
+# Ensures all 5570 municipalities get spatial vars,
+# including those with no secondary school in cescola
 # ============================================================
 
-spatial_vars <- mun_bioma %>%
+cat("\nLoading municipality boundaries for spatial vars...\n")
+munic_bounds <- st_read("data/processed/brazil_municipalities.gpkg",
+                        quiet = TRUE) %>%
+  mutate(CO_MUNICIPIO = as.character(CO_MUNICIPIO))
+
+# Use centroids for point-in-polygon joins
+munic_centroids <- st_centroid(munic_bounds) %>%
+  st_transform(crs = 4326)  # match biomas CRS
+cat("Municipality centroids:", nrow(munic_centroids), "\n")
+
+# Biome join
+sf::sf_use_s2(FALSE)
+biomas_raw <- st_read(PATH_BIOMAS, quiet = TRUE)
+biomas     <- st_transform(biomas_raw, crs = 4326) %>%
+              st_make_valid()
+
+munic_bioma <- st_join(munic_centroids,
+                       biomas %>% select(Bioma, CD_Bioma),
+                       join = st_within,
+                       left = TRUE)
+
+missing <- is.na(munic_bioma$Bioma)
+cat("Municipalities outside biome polygons:", sum(missing), "\n")
+
+if (sum(missing) > 0) {
+  nearest <- st_join(munic_centroids[missing, ],
+                     biomas %>% select(Bioma, CD_Bioma),
+                     join = st_nearest_feature)
+  munic_bioma$Bioma[missing]    <- nearest$Bioma
+  munic_bioma$CD_Bioma[missing] <- nearest$CD_Bioma
+  cat("Filled using nearest biome\n")
+}
+
+# Distance to capital — using centroid coords + SG_UF from boundaries
+munic_proj <- st_transform(munic_centroids, crs = 5880)
+cap_proj   <- st_transform(capitals_sf, crs = 5880)
+
+dist_km <- map_dbl(seq_len(nrow(munic_proj)), function(i) {
+  uf  <- munic_proj$SG_UF[i]
+  cap <- cap_proj %>% filter(SG_UF == uf)
+  if (nrow(cap) == 0) return(NA_real_)
+  dist_km_sf(munic_proj[i, ], cap)
+})
+
+sf::sf_use_s2(TRUE)
+
+spatial_vars <- munic_bioma %>%
   st_drop_geometry() %>%
   mutate(
     dist_capital_km = dist_km,
@@ -188,6 +236,7 @@ spatial_vars <- mun_bioma %>%
   ) %>%
   select(CO_MUNICIPIO, SG_UF, bioma, cd_bioma, dist_capital_km)
 
+report_table(spatial_vars, "bioma", "Biome in spatial_vars")
 # ============================================================
 # PULL MUNICIPAL CONTROLS FROM SIDRA
 # ============================================================

@@ -1,7 +1,7 @@
 bioma,n_mun,pct_no_school,mean_dist_km,median_dist_km,pct_over_10km,mean_schools_10k
-Amazonia,503,4.8,6.48,1.96,14.6,1.82
-Pampa,151,19.9,4.57,1.25,14,1.39
-Caatinga,1106,7.2,4.04,1.99,13.2,1.54
-Cerrado,1050,2.4,2,0.95,3.8,2.44
-Mata Atlantica,2753,4.4,1.77,1,3.5,2.19
-Pantanal,7,0,1.68,1.18,0.4,1.63
+Amazonia,498,4.8,14.97,9.64,40.9,1.79
+Pantanal,10,0,11.1,8.02,26.1,1.7
+Caatinga,1097,7.3,7.66,5.99,26.4,1.54
+Pampa,163,18.4,7.29,4.98,24.7,1.47
+Cerrado,1073,2.3,5.94,4.38,20.4,2.46
+Mata Atlantica,2729,4.4,3.7,3.09,8,2.18

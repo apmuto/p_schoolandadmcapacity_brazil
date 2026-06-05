@@ -1,0 +1,5 @@
+Model,N,R2,R2_adj,AIC
+m1: Fiscal autonomy (no FE),5250,0.515,0.514,6171.6
+m2: Composite (no FE),5252,0.523,0.522,6083.7
+m3: Composite (state FE),5252,0.603,0.6,5166.7
+m4: Disaggregated (no FE),4742,0.539,0.538,5095.4

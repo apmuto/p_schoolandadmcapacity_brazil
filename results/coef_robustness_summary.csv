@@ -1,0 +1,29 @@
+Model;Variable;Estimate;SE;t;p;N;R2
+M_capag1 CAPAG (no FE);capag_numeric;-0.0014;0.0144;-0.0948;0.9252;3478;0.5521
+M_capag2 CAPAG (state FE);capag_numeric;-0.0131;0.0094;-1.3979;0.1744;3478;0.6306
+M_capag3 CAPAG+Composite (no FE);capag_numeric;0.0171;0.0131;1.3051;0.2037;3469;0.5672
+M_capag3 CAPAG+Composite (no FE);adm_capacity_score_mun;-0.1481;0.0337;-4.3999;2e-04;3469;0.5672
+M_capag4 CAPAG+Composite (state FE);capag_numeric;-0.0039;0.0087;-0.4455;0.6598;3469;0.6367
+M_capag4 CAPAG+Composite (state FE);adm_capacity_score_mun;-0.105;0.0258;-4.0758;4e-04;3469;0.6367
+M_dens1 Density repl. pop (no FE);adm_capacity_score_mun;-0.1216;0.0309;-3.9325;6e-04;5252;0.5243
+M_dens2 Density repl. pop (state FE);adm_capacity_score_mun;-0.0856;0.0244;-3.5111;0.0017;5252;0.6
+M_dens3 Pop + density (no FE);adm_capacity_score_mun;-0.1216;0.0309;-3.9325;6e-04;5252;0.5243
+M_dens4 Pop + density (state FE);adm_capacity_score_mun;-0.0856;0.0244;-3.5111;0.0017;5252;0.6
+M_own1 Own resources pc (no FE);fiscal_autonomy_mun;-0.8218;0.2878;-2.8549;0.0085;5250;0.5151
+M_own2 Own resources pc (state FE);fiscal_autonomy_mun;-0.297;0.2837;-1.0469;0.3051;5250;0.5987
+M_own3 Fiscal autonomy (no FE);fiscal_autonomy_mun;-0.8218;0.2878;-2.8549;0.0085;5250;0.5151
+M_own4 Fiscal autonomy (state FE);fiscal_autonomy_mun;-0.297;0.2837;-1.0469;0.3051;5250;0.5987
+M_biome1 Disaggr. + biome FE;edu_share_mun;1.618;0.1928;8.3924;0;5223;0.5539
+M_biome1 Disaggr. + biome FE;fpm_dependence_mun;-0.8201;0.2476;-3.3123;0.0028;5223;0.5539
+M_biome2 Disaggr. + biome+state FE;edu_share_mun;1.2168;0.1659;7.3365;0;5223;0.622
+M_biome2 Disaggr. + biome+state FE;fpm_dependence_mun;-0.7991;0.2041;-3.9161;6e-04;5223;0.622
+M_biome3 Composite + biome FE;adm_capacity_score_mun;-0.1299;0.0361;-3.5989;0.0014;5252;0.5169
+M_biome4 Composite + biome+state FE;adm_capacity_score_mun;-0.084;0.0244;-3.436;0.0021;5252;0.603
+M_region1 Disaggr. + region FE;edu_share_mun;1.1547;0.2772;4.1651;3e-04;5223;0.557
+M_region1 Disaggr. + region FE;fpm_dependence_mun;-0.7914;0.2477;-3.1951;0.0038;5223;0.557
+M_region2 Disaggr. + region+state FE;edu_share_mun;1.1997;0.1669;7.1886;0;5223;0.6183
+M_region2 Disaggr. + region+state FE;fpm_dependence_mun;-0.7829;0.2156;-3.6319;0.0013;5223;0.6183
+M_region3 Composite + region FE;adm_capacity_score_mun;-0.0865;0.0306;-2.8314;0.009;5252;0.5338
+M_region4 Composite + region+state FE;adm_capacity_score_mun;-0.0856;0.0244;-3.5098;0.0017;5252;0.6
+M_interact FPM x distance;fpm_dependence_mun;0.5513;0.555;0.9932;0.3301;5227;0.5404
+M_interact FPM x distance;fpm_dependence_mun:log_dist_capital;-0.3138;0.1056;-2.9704;0.0065;5227;0.5404

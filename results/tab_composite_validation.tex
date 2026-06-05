@@ -1,0 +1,23 @@
+\begin{table}[h]
+\centering
+\caption{Composite construction: PCA validation}
+\begin{tabular}{lrrr}
+\toprule
+Indicator & PC1 & PC2 & PC3 \\
+\midrule
+Education spending share & -0.707 & -0.000 & 0.707 \\
+Budget execution rate & -0.544 & -0.639 & -0.544 \\
+Debt ratio & 0.452 & -0.769 & 0.452 \\
+\midrule
+Variance explained (\%) & 43.9 & 33.3 & 22.8 \\
+\midrule
+\multicolumn{4}{l}{\textit{Correlations with log population}} \\
+Before orthogonalization & \multicolumn{3}{r}{edu=0.231, budget=-0.001, debt=0.264} \\
+After orthogonalization  & \multicolumn{3}{r}{edu=-0.047, budget=-0.026, debt=0.001} \\
+\midrule
+Correlation with CAPAG grade & \multicolumn{3}{r}{0.407 (n=3671)} \\
+\bottomrule
+\end{tabular}
+\\[4pt]
+\footnotesize{PCA on size-orthogonalized residuals. PC1 used as composite score.}
+\end{table}

@@ -173,7 +173,7 @@ finbra_mun <- finbra_mun %>%
   mutate(
     # Cap own-source revenue at 0 minimum
     receita_propria = pmax(receita_propria, 0),
-
+    
     # Cap budget execution at 1.0 maximum
     desp_liquidadas = pmin(desp_liquidadas, desp_empenhadas,
                            na.rm = TRUE)
@@ -199,55 +199,45 @@ cat("\nBuilding municipal fiscal capacity indicators...\n")
 
 finbra_mun <- finbra_mun %>%
   mutate(
-
+    
     # --- STRUCTURAL INDICATORS (controls, not in composite) ---
     # Fiscal autonomy: own revenue / total revenue
     # Measures structural fiscal position, correlated with size
     fiscal_autonomy_mun     = receita_propria / receita_total,
-
+    
     # Transfer dependence: transfers / total revenue
     transfer_dependence_mun = transf_total / receita_total,
-
+    
     # --- BEHAVIORAL INDICATORS (composite components) ---
     # FPM dependence: federal equalization / total revenue
     # Measures dependence on Brasília specifically
     fpm_dependence_mun      = fpm / receita_total,
-
+    
     # Education share: education spending / total liquidated
     # Measures whether state prioritizes education (policy choice)
     edu_share_mun           = desp_educacao / desp_liquidadas,
-
+    
     # Budget execution: liquidated / committed
     # Measures administrative delivery capacity
     # Capped at 1.0 — values above indicate data error
     budget_execution_mun    = pmin(
-                                desp_liquidadas / desp_empenhadas,
-                                1.0, na.rm = TRUE),
-
+      desp_liquidadas / desp_empenhadas,
+      1.0, na.rm = TRUE),
+    
     # Debt ratio: total liabilities / total revenue
     # Winsorized at p99 to remove Palmares Paulista data error
     # Measures fiscal stress limiting service delivery
     debt_ratio_mun          = winsorize(
-                                (passivo_circulante + passivo_nao_circ) /
-                                receita_total,
-                                p = 0.01),
-
+      (passivo_circulante + passivo_nao_circ) /
+        receita_total,
+      p = 0.01),
+    
     # --- LOG TRANSFORMS OF SKEWED INDICATORS ---
     log_edu_share_mun       = log(edu_share_mun + 0.001),
     log_debt_ratio_mun      = log(debt_ratio_mun + 0.001),
-
-    # --- BEHAVIORAL CAPACITY COMPOSITE (main IV) ---
-    # Standardized mean of behavioral indicators only
-    # Higher = more capable administrative behavior
-    # Inverted: fpm_dependence and debt_ratio (higher = worse)
-    adm_capacity_score_mun  = rowMeans(
-      scale(cbind(
-        -fpm_dependence_mun,
-        edu_share_mun,
-        budget_execution_mun,
-        -debt_ratio_mun
-      )), na.rm = TRUE
-    )
+    
+    # adm_capacity_score_mun built below via PCA on size-orthogonal residuals
+    # See: COMPOSITE CONSTRUCTION section
   )
 
 # Report how many values were fixed
@@ -256,6 +246,42 @@ cat("Municipalities with fiscal_autonomy < 0 (fixed to 0):",
 cat("Municipalities with budget_execution > 1 (capped at 1):",
     sum((finbra_mun$desp_liquidadas / finbra_mun$desp_empenhadas) > 1,
         na.rm = TRUE), "\n")
+# ==============================================================================
+# COMPOSITE CONSTRUCTION — SIMPLE MEAN OF SCALED BEHAVIORAL INDICATORS
+#
+# Three behavioral indicators:
+#   edu_share_mun        — education spending / total liquidated
+#   budget_execution_mun — liquidated / committed spending
+#   debt_ratio_mun       — liabilities / total revenue (inverted)
+#
+# Method: standardize each indicator (z-score), invert debt_ratio,
+#         take rowMeans. Higher score = better administrative capacity.
+# Population controlled for in regression, not pre-processing.
+# ==============================================================================
+
+cat("\nBuilding composite (simple mean of scaled indicators)...\n")
+
+finbra_mun <- finbra_mun %>%
+  mutate(
+    adm_capacity_score_mun = -rowMeans(
+      scale(cbind(
+        edu_share_mun,
+        budget_execution_mun,
+        -debt_ratio_mun
+      )), na.rm = TRUE
+    )
+  )
+
+cat("\nValidation:\n")
+cat("  cor(composite, fiscal_autonomy) =",
+    round(cor(finbra_mun$adm_capacity_score_mun,
+              finbra_mun$fiscal_autonomy_mun, use = "complete.obs"), 3), "\n")
+cat("  cor(composite, fpm_dependence)  =",
+    round(cor(finbra_mun$adm_capacity_score_mun,
+              finbra_mun$fpm_dependence_mun, use = "complete.obs"), 3), "\n")
+
+cat("\nFinal composite diagnostics:\n")
+report_indicators(finbra_mun, "adm_capacity_score_mun")
 # ============================================================
 # LOAD STATE FINBRA FILES
 # load_finbra() auto-cleans Conta, Coluna, Valor
@@ -362,20 +388,20 @@ finbra_est <- est_receitas %>%
     by = "SG_UF"
   ) %>%
   mutate(
-
+    
     # Structural indicators (kept separate)
     fiscal_autonomy_est     = receita_propria / receita_total,
     transfer_dependence_est = transf_total / receita_total,
-
+    
     # Behavioral indicators
     edu_share_est           = desp_educacao / desp_liquidadas,
     budget_execution_est    = pmin(
-                                desp_liquidadas / desp_empenhadas,
-                                1.0, na.rm = TRUE),
+      desp_liquidadas / desp_empenhadas,
+      1.0, na.rm = TRUE),
     debt_ratio_est          = (passivo_circulante + passivo_nao_circ) /
-                               receita_total,
+      receita_total,
     fpm_dependence_est      = transf_uniao / receita_total,
-
+    
     # Behavioral composite — state level
     adm_capacity_score_est  = rowMeans(
       scale(cbind(

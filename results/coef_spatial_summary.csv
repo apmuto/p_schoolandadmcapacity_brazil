@@ -1,0 +1,7 @@
+Model;Type;Variable;Estimate;SE;p
+Composite;OLS;adm_capacity_score_mun;-0.1347;0.011;0
+Composite;SEM;adm_capacity_score_mun;-0.0872;0.011;0
+Disaggregated;OLS;edu_share_mun;1.5642;0.0849;0
+Disaggregated;OLS;fpm_dependence_mun;-0.7702;0.0922;0
+Disaggregated;SEM;edu_share_mun;1.2166;0.0899;0
+Disaggregated;SEM;fpm_dependence_mun;-0.7265;0.09;0

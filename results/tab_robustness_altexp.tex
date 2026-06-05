@@ -1,0 +1,30 @@
+\begingroup
+\centering
+\begin{tabular}{lcccccc}
+   \tabularnewline \midrule \midrule
+   Dependent Variable: & \multicolumn{6}{c}{log\_mean\_dist}\\
+   Model:                       & (1)             & (2)             & (3)             & (4)      & (5)             & (6)\\  
+   \midrule
+   \emph{Variables}\\
+   adm\_capacity\_score\_mun    & -0.1216$^{***}$ & -0.0856$^{***}$ &                 &          &                 &   \\   
+                                & (0.0309)        & (0.0244)        &                 &          &                 &   \\   
+   log\_pop\_density\_mun       & -0.0489$^{***}$ & -0.0719$^{***}$ &                 &          &                 &   \\   
+                                & (0.0157)        & (0.0136)        &                 &          &                 &   \\   
+   fiscal\_autonomy\_mun        &                 &                 & -0.8218$^{***}$ & -0.2970  & -0.8218$^{***}$ & -0.2970\\   
+                                &                 &                 & (0.2878)        & (0.2837) & (0.2878)        & (0.2837)\\   
+   \midrule
+   \emph{Fixed-effects}\\
+   SG\_UF                       &                 & Yes             &                 & Yes      &                 & Yes\\  
+   \midrule
+   \emph{Fit statistics}\\
+   Observations                 & 5,252           & 5,252           & 5,250           & 5,250    & 5,250           & 5,250\\  
+   R$^2$                        & 0.52428         & 0.60004         & 0.51512         & 0.59871  & 0.51512         & 0.59871\\  
+   Within R$^2$                 &                 & 0.27943         &                 & 0.27718  &                 & 0.27718\\  
+   \midrule \midrule
+   \multicolumn{7}{l}{\emph{Clustered (SG\_UF) standard-errors in parentheses}}\\
+   \multicolumn{7}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+\end{tabular}
+ 
+\par \raggedright 
+Cols 1-2: population density replaces log population. Cols 3-4: log own-source revenue per capita as IV. Cols 5-6: fiscal autonomy (own/total revenue) as IV. SE clustered by state.
+\par\endgroup

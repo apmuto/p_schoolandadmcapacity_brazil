@@ -1,0 +1,32 @@
+\begin{table}[H]
+\centering
+\caption{Main Models and Robustness Checks}
+\label{tab:robustness}
+\begin{tabular}{lcccc}
+\toprule
+Specification & $\beta$ & SE & $p$ & N \\
+\midrule
+\textit{Main models} & & & & \\
+M1: Fiscal autonomy (OLS) & $-$0.822 & 0.287 & 0.004 & 5,250 \\
+M2: Composite (OLS, no FE) & $-$0.115 & 0.034 & $<$0.001 & 5,252 \\
+M3: Composite (state FE) & $-$0.084 & 0.024 & 0.002 & 5,252 \\
+M4: FPM dependence (OLS) & $-$0.855 & 0.216 & $<$0.001 & 4,742 \\
+\midrule
+\textit{CAPAG validation} & & & & \\
+FINBRA composite (CAPAG subsample) & $-$0.148 & 0.034 & $<$0.001 & 3,469 \\
+CAPAG grade (CAPAG subsample) & $-$0.012 & 0.013 & 0.204 & 3,469 \\
+\midrule
+\textit{Alternative controls} & & & & \\
+Density control & $-$0.122 & 0.031 & 0.001 & 5,252 \\
+\midrule
+\textit{Geographic FE} & & & & \\
+Biome FE & $-$0.130 & 0.036 & 0.001 & 5,252 \\
+Region FE & $-$0.087 & 0.031 & 0.009 & 5,252 \\
+Biome + state FE & $-$0.084 & 0.024 & 0.002 & 5,252 \\
+\midrule
+\textit{Spatial correction} & & & & \\
+Spatial error model (SEM) & $-$0.087 & 0.011 & $<$0.001 & 5,223 \\
+\bottomrule
+\multicolumn{5}{p{12cm}}{\footnotesize \textit{Notes:} Dependent variable: log mean settlement-to-school distance. M4 shows FPM dependence coefficient only. SEM $\lambda$ = 0.534. All OLS models include biome FE and controls. Clustered SE by state except SEM.} \\
+\end{tabular}
+\end{table}
