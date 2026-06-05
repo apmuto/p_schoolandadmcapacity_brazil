@@ -48,16 +48,6 @@ Run scripts in the following order to reproduce the analysis:
 | `82_robustness.R` | Geographic fixed effects robustness (biome, region, state FE) |
 | `83_robustness_spatial.R` | Spatial diagnostics (Moran's I, LM tests, SEM) |
 
-### PE Paper Scripts (separate pipeline, `_pe` suffix)
-
-| Script | Description |
-|--------|-------------|
-| `11_calculationdistances_pe.R` | Distance calculations for rural settlements only |
-| `21_mastermerge_mun_pe.R` | Master merge for PE paper sample |
-| `31_models_pe.R` | PE paper models (rural subsample) |
-| `81_explore_pe.R` | Exploratory analysis for PE paper |
-
----
 
 ## Data Sources
 
